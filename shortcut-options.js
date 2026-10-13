@@ -23,20 +23,16 @@ export function primaryAccelerators(accelerators) {
     return accelerators.filter(value => !modifiers.has(value));
 }
 
-export function withPrimaryShortcut(accelerators, primary) {
-    return [...new Set([...primary, ...modifierAccelerators(accelerators)])];
-}
-
 export function modifierSelection(options, accelerators = []) {
     const groups = options.filter(option => option.startsWith('grp:'));
     const native = new Set(accelerators.map(canonical));
     const active = [1, 2].filter(index => MODIFIER_SHORTCUTS[index].accelerators.some(value => native.has(value)));
     if (!groups.length)
-        return active.length === 0 ? 0 : active.length === 1 ? active[0] : MODIFIER_SHORTCUTS.length;
+        return active.length === 0 ? 0 : active.length === 1 ? active[0] : -1;
     if (groups.length === 1 && groups[0] === 'grp:caps_toggle' && !active.length)
         return 3;
-    // Legacy XKB Alt/Ctrl switches are Custom until the user chooses the native preset.
-    return MODIFIER_SHORTCUTS.length;
+    // Unrecognized system configurations are not represented as a selectable preset.
+    return -1;
 }
 
 export function withModifierShortcut(options, accelerators, index) {

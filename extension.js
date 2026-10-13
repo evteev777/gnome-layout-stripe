@@ -29,6 +29,11 @@ export default class LayoutStripe extends Extension {
             if (keyboard?.container)
                 this._systemVisibility = new PanelVisibility(keyboard.container);
             this._watch(this._manager, 'current-source-changed', () => this._rebuild());
+            this._watch(inputSettings, 'changed::xkb-options', () => {
+                // GNOME 50.1 reapply() passes a layout object instead of its ID.
+                // Reload through the manager so live XKB changes reach the backend.
+                this._manager.reload();
+            });
             this._watch(this._manager, 'sources-changed', () => {
                 this._indicator.refresh(true);
                 this._rebuild();

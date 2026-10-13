@@ -60,7 +60,7 @@ it to extensions.gnome.org. Remove versions that cannot be tested or supported.
 - [ ] Preferences typing, focus and Unicode rendering on the target desktop.
 - [ ] Left/right click menus, neighboring icons, keyboard navigation and source activation.
 - [ ] System layout viewer and keyboard settings while the system indicator is hidden.
-- [ ] Next/previous shortcuts, modifier-only switches, conflicts and cancellation.
+- [ ] Additional shortcut choices, conflicts and repeated Caps Lock restoration.
 - [ ] System shortcuts persist after extension disable and remain intact after Reset.
 
 ## Catalog submission
@@ -69,9 +69,11 @@ Use the runtime ZIP from `npm run build`. Attach representative screenshots and
 review the current [GNOME review guidelines](https://gjs.guide/extensions/review-guidelines/review-guidelines.html).
 The maintainer must understand and be able to explain submitted code, including
 code developed with AI assistance. Catalog review is not a substitute for runtime
-validation. Beta 2 menus and the manual native GNOME Alt+Shift binding were confirmed by the
-maintainer. The dropdown now uses that native route for Alt+Shift/Ctrl+Shift; the
-revised dropdown and Ctrl+Shift still require desktop verification.
+validation. The maintainer confirmed beta 2 menus and Alt+Shift/Ctrl+Shift/None choices.
+Standard shortcut editors and the Custom item were removed. A signal-owned manager
+reload handles live XKB changes, working around GNOME 50.1 passing a layout object
+instead of an ID to its keymap reapply path. Repeated Caps Lock restoration needs
+real-desktop confirmation. No Shell method is replaced.
 
 The beta release workflow publishes a GitHub prerelease after the version is
 merged into master. Catalog submission remains a separate step.

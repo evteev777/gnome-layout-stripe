@@ -7,23 +7,13 @@ import * as options from '../shortcut-options.js';
 class Widget {
     handlers = new Map();
     children = [];
-    suffixes = [];
-    controllers = [];
     toasts = [];
     constructor(props = {}) {Object.assign(this, props);}
     connect(signal, callback) {this.handlers.set(signal, callback); return signal;}
     disconnect(signal) {this.handlers.delete(signal);}
     emit(signal, ...args) {return this.handlers.get(signal)?.(this, ...args);}
-    append(child) {this.children.push(child);}
     add(child) {this.children.push(child);}
-    add_suffix(child) {this.suffixes.push(child);}
-    add_css_class() {}
-    set_child(child) {this.child = child;}
-    insert_child_after(child, sibling) {this.children.splice(this.children.indexOf(sibling) + 1, 0, child);}
-    add_controller(controller) {this.controllers.push(controller);}
     add_toast(toast) {this.toasts.push(toast);}
-    present() {this.presented = true;}
-    close() {this.closed = true;}
 }
 class Settings extends Widget {
     writes = [];
@@ -31,7 +21,6 @@ class Settings extends Widget {
     constructor(values) {
         super();
         this.values = JSON.parse(JSON.stringify(values));
-        this.defaults = JSON.parse(JSON.stringify(values));
         this.settings_schema = {list_keys: () => Object.keys(values)};
     }
     get_strv(key) {return this.values[key];}
@@ -43,8 +32,6 @@ class Settings extends Widget {
         this.emit(`changed::${key}`);
         return true;
     }
-    get_default_value(key) {return {deep_unpack: () => [...this.defaults[key]]};}
-    reset(key) {this.set_strv(key, this.defaults[key]);}
     connect(signal, callback) {
         const id = Symbol(signal);
         this.handlers.set(id, {signal, callback});
@@ -56,15 +43,11 @@ class Settings extends Widget {
     }
 }
 function create(inputOptions = ['compose:ralt', 'grp:alt_shift_toggle'], accelerators = ['<Super>space']) {
-    const dialogs = [];
     const bindings = new Settings({'switch-input-source': accelerators,
         'switch-input-source-backward': ['<Super><Shift>space'], close: ['<Alt>F4']});
     const inputs = new Settings({'xkb-options': inputOptions});
     const Gtk = {
-        Align: {END: 1, CENTER: 2}, Orientation: {VERTICAL: 1}, PropagationPhase: {CAPTURE: 1},
-        Box: Widget, Label: Widget, Button: Widget, DropDown: Widget, EventControllerKey: Widget,
-        StringList: {new: list => list},
-        Window: class extends Widget {constructor(props) {super(props); dialogs.push(this);}},
+        StringList: {new: list => list}, INVALID_LIST_POSITION: 4294967295,
         accelerator_parse(value) {
             if (/^\d+:\d+$/.test(value)) {
                 const [mods, key] = value.split(':').map(Number);
@@ -77,12 +60,9 @@ function create(inputOptions = ['compose:ralt', 'grp:alt_shift_toggle'], acceler
                 (value.includes('<Alt>') ? 8 : 0) | (value.includes('<Super>') ? 64 : 0);
             return [true, key, mods];
         },
-        accelerator_get_label: (key, mods) => `${mods}:${key}`,
         accelerator_name: (key, mods) => `${mods}:${key}`,
-        accelerator_get_default_mod_mask: () => 77,
-        accelerator_valid: key => key !== 2000,
     };
-    const Gdk = {keyval_to_lower: key => key, KEY_Escape: 27, KEY_BackSpace: 8, KEY_F1: 1000, KEY_F35: 1034};
+    const Gdk = {keyval_to_lower: key => key};
     const code = fs.readFileSync(new URL('../shortcut-preferences.js', import.meta.url), 'utf8')
         .replace(/^import [\s\S]*?;\n/gm, '').replace('export function addShortcutPreferences', 'function addShortcutPreferences');
     const add = vm.runInNewContext(`${code}\naddShortcutPreferences;`, {
@@ -94,7 +74,7 @@ function create(inputOptions = ['compose:ralt', 'grp:alt_shift_toggle'], acceler
     const page = new Widget();
     const window = new Widget();
     const cleanup = add(page, window);
-    return {page, bindings, inputs, dialogs, cleanup, window};
+    return {page, bindings, inputs, cleanup, window};
 }
 
 test('opening shortcut preferences does not change system settings; edits preserve other options', () => {
@@ -102,8 +82,8 @@ test('opening shortcut preferences does not change system settings; edits preser
     assert.equal(bindings.writes.length, 0);
     assert.equal(inputs.writes.length, 0);
     const group = page.children[0];
-    const modifiers = group.children[2];
-    assert.equal(modifiers.selected, 4);
+    const modifiers = group.children[0];
+    assert.equal(modifiers.selected, 4294967295);
     modifiers.selected = 2;
     modifiers.emit('notify::selected');
     assert.deepEqual(inputs.values['xkb-options'], ['compose:ralt']);
@@ -115,44 +95,11 @@ test('opening shortcut preferences does not change system settings; edits preser
     assert.equal(modifiers.selected, 2);
 });
 
-test('shortcut recorder rejects conflicts, supports disabling and Escape, and allows focus navigation', () => {
-    const {page, bindings, dialogs, cleanup} = create();
-    const edit = page.children[0].children[0].suffixes[0];
-    edit.emit('clicked');
-    const dialog = dialogs[0];
-    assert.equal(dialog.destroy_with_parent, true);
-    const controller = dialog.controllers[0];
-    const buttons = dialog.child.children.at(-1);
-    const apply = buttons.children[1];
-    assert.equal(apply.sensitive, false);
-    assert.equal(controller.emit('key-pressed', 9, 0, 0), false); // Tab can move focus.
-    controller.emit('key-pressed', 1003, 0, 8); // Alt+F4 is already assigned.
-    assert.equal(apply.sensitive, false);
-    controller.emit('key-pressed', 32, 0, 4); // Ctrl+Space.
-    assert.equal(apply.sensitive, true);
-    apply.emit('clicked');
-    assert.deepEqual(bindings.values['switch-input-source'], ['4:32']);
-    assert.equal(dialog.closed, true);
-    assert.deepEqual(bindings.values.close, ['<Alt>F4']);
-    edit.emit('clicked');
-    dialogs[1].controllers[0].emit('key-pressed', 8, 0, 0);
-    dialogs[1].child.children.at(-1).children[1].emit('clicked');
-    assert.equal(bindings.values['switch-input-source'].length, 0);
-    edit.emit('clicked');
-    const writes = bindings.writes.length;
-    dialogs[2].controllers[0].emit('key-pressed', 27, 0, 0);
-    assert.equal(dialogs[2].closed, true);
-    assert.equal(bindings.writes.length, writes);
-    cleanup();
-});
-
-
 test('manual Alt+Shift is recognized and dropdown changes replace it without removing main shortcuts', () => {
     const {page, bindings, inputs, cleanup} = create([], ['<Super>space', ...options.MODIFIER_SHORTCUTS[1].accelerators]);
     const group = page.children[0];
-    const modifiers = group.children[2];
+    const modifiers = group.children[0];
     assert.equal(modifiers.selected, 1);
-    assert.equal(group.children[0].suffixes[0].label, '64:32');
     modifiers.selected = 2;
     modifiers.emit('notify::selected');
     assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space', ...options.MODIFIER_SHORTCUTS[2].accelerators]);
@@ -167,20 +114,9 @@ test('manual Alt+Shift is recognized and dropdown changes replace it without rem
     cleanup();
 });
 
-test('resetting the main shortcut preserves the additional modifier combination', () => {
-    const {page, bindings, cleanup} = create([], ['<Super>space']);
-    const group = page.children[0];
-    bindings.set_strv('switch-input-source', ['<Control>space', ...options.MODIFIER_SHORTCUTS[1].accelerators]);
-    group.children[0].suffixes[1].emit('clicked');
-    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space', ...options.MODIFIER_SHORTCUTS[1].accelerators]);
-    assert.equal(group.children[2].selected, 1);
-    cleanup();
-});
-
-
 test('modifier selection blocks conflicting bindings and rolls back XKB options after a failed write', () => {
     const {page, bindings, inputs, window, cleanup} = create(['compose:ralt', 'grp:caps_toggle']);
-    const row = page.children[0].children[2];
+    const row = page.children[0].children[0];
     bindings.set_strv('close', ['<Alt>Shift_L']);
     row.selected = 1;
     row.emit('notify::selected');
@@ -196,5 +132,18 @@ test('modifier selection blocks conflicting bindings and rolls back XKB options 
     assert.deepEqual(inputs.values['xkb-options'], ['compose:ralt', 'grp:caps_toggle']);
     assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
     assert.ok(window.toasts[1].title.includes('not writable'));
+    cleanup();
+});
+
+
+test('preferences expose only the additional combinations, without a selectable Custom item', () => {
+    const {page, inputs, bindings, cleanup} = create(['grp:win_space_toggle']);
+    const group = page.children[0];
+    assert.equal(group.children.length, 1);
+    const row = group.children[0];
+    assert.deepEqual([...row.model], ['None', 'Alt+Shift', 'Ctrl+Shift', 'Caps Lock']);
+    assert.equal(row.selected, 4294967295);
+    assert.equal(inputs.writes.length, 0);
+    assert.equal(bindings.writes.length, 0);
     cleanup();
 });

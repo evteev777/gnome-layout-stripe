@@ -58,29 +58,25 @@ Menu or Shift+F10 opens settings. Escape and clicking outside close the popup.
 
 ## Keyboard shortcuts
 
-The Stripe page edits GNOME's **Next input source** and **Previous input source**
-shortcuts. Choose a common combination or press your own in the capture dialog.
-Escape cancels; Backspace disables the selected action. The editor detects
-conflicts with other `org.gnome.desktop.wm.keybindings` actions and rechecks them
-before applying. Other shortcut providers are not inspected.
+The Stripe page offers one **Modifier-only shortcut** selector: None, Alt+Shift,
+Ctrl+Shift or Caps Lock. Standard next/previous shortcuts remain in GNOME Keyboard
+Settings, available through the indicator's right-click menu.
 
-**Modifier-only shortcut** offers Alt+Shift, Ctrl+Shift and Caps Lock, or None.
 Alt+Shift and Ctrl+Shift use GNOME's next-input-source bindings for both key orders
-and left/right modifier keys. Caps Lock uses an XKB group switch for keyboard
-layouts; it does not switch IBus methods. Choosing None removes the additional
-switch while keeping the main shortcuts.
+and left/right modifier keys. Caps Lock uses an XKB group switch. Choosing None
+removes the additional switch while keeping standard shortcuts such as Super+Space.
+Changing the preset also preserves unrelated XKB options such as Compose settings.
 
-Changing the preset preserves unrelated shortcuts and XKB options such as Compose
-settings. Existing manual Alt+Shift/Ctrl+Shift bindings are recognized. Mixed or
-legacy XKB configurations are shown as Custom (system) and remain unchanged until
-a supported option is selected; Custom is a status label, not a reset action.
-Editing or restoring the main Next input source shortcut preserves the additional
-modifier combination.
+Existing manual Alt+Shift/Ctrl+Shift bindings are recognized. A mixed or unsupported
+system configuration has no selected option and is left unchanged until an explicit
+selection; there is no selectable Custom item. Opening preferences does not change
+system settings. Shortcut edits persist after disabling or uninstalling the
+extension, and Layout Stripe's Reset does not change them.
 
-These controls edit system settings only after an explicit user action. Shortcuts
-remain active when the extension is disabled or uninstalled. The extension's
-Reset does not change them; the individual reset buttons restore GNOME's defaults
-for next/previous shortcuts. No additional Shell keybindings or grabs are installed.
+The extension reloads GNOME's input-source manager when XKB options change. This
+works around GNOME 50.1 passing a layout object instead of an ID in its keymap
+reapply path, which can leave Caps Lock using the previous keymap after a switch.
+No GNOME method is replaced and no additional global keybinding is installed.
 
 ## Install
 
@@ -128,8 +124,8 @@ Wayland and GNOME 50 on Wayland. Other desktop environments are not supported.
 Future GNOME releases are deliberately not listed.
 
 **Beta 1 was confirmed by the maintainer:** GNOME Shell 50.1 on Wayland,
-including the emoji chooser. The maintainer also confirmed the beta 2 menus and a manual GNOME Alt+Shift
-binding. The revised dropdown routing and Ctrl+Shift still need desktop validation. GNOME 46–49 remain enabled for beta testing and have not yet been
+including the emoji chooser. The maintainer confirmed the beta 2 menus and Alt+Shift/Ctrl+Shift/None selections.
+The Caps Lock reload fix still needs real-desktop validation. GNOME 46–49 remain enabled for beta testing and have not yet been
 validated on real desktops.
 
 Automated tests use simulated Shell/GTK objects and do not certify desktop

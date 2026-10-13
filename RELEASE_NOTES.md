@@ -1,6 +1,6 @@
 # Layout Stripe 1.0 Beta 2
 
-This beta adds system input-source shortcut editing and separates the panel
+This beta adds an additional layout shortcut selector and separates the panel
 indicator's left-click source list from its right-click settings menu.
 
 ## New in beta 2
@@ -8,11 +8,14 @@ indicator's left-click source list from its right-click settings menu.
 - Left-click: input sources with Unicode symbols, names and an active-source check.
 - Right-click: Layout Stripe Settings, Show Keyboard Layout and Keyboard Settings.
 - Centered, independently managed popup to avoid neighboring menu hover switches.
-- Next/previous input-source shortcut capture, common choices and WM conflict checks.
+- One additional layout shortcut selector; standard next/previous editing remains
+  in GNOME Keyboard Settings. There is no selectable Custom item.
 - Native GNOME Alt+Shift/Ctrl+Shift bindings and an XKB Caps Lock switch,
   preserving unrelated shortcuts and keyboard options.
 - Recognition of manually configured modifier shortcuts; None removes only the
-  additional switch, and main-shortcut edits retain it.
+  additional switch while keeping standard shortcuts.
+- Reload input sources after live XKB option changes to restore Caps Lock switching
+  on GNOME 50.1 without replacing GNOME methods.
 
 System shortcut edits persist independently of the extension. Resetting Layout
 Stripe does not reset those shortcuts.
@@ -33,8 +36,8 @@ Stripe does not reset those shortcuts.
 ## Compatibility
 
 Beta 1 was confirmed by the maintainer on **GNOME Shell 50.1 / Wayland**.
-The maintainer also confirmed the beta 2 menus and a manual GNOME Alt+Shift
-binding. Revised dropdown routing and Ctrl+Shift still need desktop testing. GNOME 46–49 are
+The maintainer confirmed the beta 2 menus and Alt+Shift/Ctrl+Shift/None selections.
+The Caps Lock reload fix still needs desktop testing. GNOME 46–49 are
 listed for beta testing but have not yet been validated on real desktops.
 Other desktop environments are not supported. Please report issues with the
 GNOME Shell version, session type and relevant journal messages.
