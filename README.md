@@ -38,7 +38,10 @@ to open GTK's built-in emoji chooser with categories and search. Picking an emoj
 replaces the current symbol; manual text entry remains available.
 
 **Hide** remembers the previous opacity and restores it when unchecked.
-**My presets** saves complete configurations. Applying a preset copies its
+**My presets** saves complete configurations. **New preset** opens a temporary
+editor for a preset created from scratch, with colors, opacity, Hide, reverse and
+a Unicode symbol. Save adds it to My presets; Cancel discards the draft. Neither
+affects a configured input source. New names must be unique. Applying a preset copies its
 settings; subsequent changes to the saved preset do not alter other layouts.
 **Reset** restores defaults and automatic preset selection without deleting
 saved presets or changing the system's input sources.
@@ -58,7 +61,7 @@ Menu or Shift+F10 opens settings. Escape and clicking outside close the popup.
 
 ## Keyboard shortcuts
 
-The Stripe page offers one **Modifier-only shortcut** selector: None, Alt+Shift,
+The Stripe page offers one **Additional layout shortcut** selector: None, Alt+Shift,
 Ctrl+Shift or Caps Lock. Standard next/previous shortcuts remain in GNOME Keyboard
 Settings, available through the indicator's right-click menu.
 

@@ -5,6 +5,9 @@ indicator's left-click source list from its right-click settings menu.
 
 ## New in beta 2
 
+- New preset creation from scratch through an on-demand editor under My presets.
+- Clearer labels: Show country flag or custom Unicode symbol and Additional layout shortcut.
+
 - Left-click: input sources with Unicode symbols, names and an active-source check.
 - Right-click: Layout Stripe Settings, Show Keyboard Layout and Keyboard Settings.
 - Centered, independently managed popup to avoid neighboring menu hover switches.

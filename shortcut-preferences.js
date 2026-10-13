@@ -14,11 +14,11 @@ function normalizeAccelerator(value) {
 export function addShortcutPreferences(page, window) {
     const bindings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.keybindings'});
     const inputs = new Gio.Settings({schema_id: 'org.gnome.desktop.input-sources'});
-    const group = new Adw.PreferencesGroup({title: 'Additional layout shortcut',
+    const group = new Adw.PreferencesGroup({title: 'Keyboard shortcuts',
         description: 'Standard next/previous shortcuts stay in GNOME Keyboard Settings. This switch remains active when Layout Stripe is disabled.'});
     page.add(group);
     const signals = [];
-    const modifiers = new Adw.ComboRow({title: 'Modifier-only shortcut',
+    const modifiers = new Adw.ComboRow({title: 'Additional layout shortcut',
         subtitle: 'Additional switch. None disables it without removing your main shortcuts.',
         model: Gtk.StringList.new(MODIFIER_SHORTCUTS.map(shortcut => shortcut.label)),
         sensitive: inputs.is_writable('xkb-options') && bindings.is_writable('switch-input-source')});

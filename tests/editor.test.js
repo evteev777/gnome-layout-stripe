@@ -178,3 +178,38 @@ test('emoji picker replaces the symbol, persists it and closes without changing 
         assert.equal(row(reopened, 'Unicode symbol').suffixes[0].text, emoji);
     }
 });
+
+
+test('new preset drafts save complete settings without changing layout assignments', () => {
+    const {prefs, settings, values, window} = create();
+    let saved = 0;
+    let cancelled = 0;
+    const actions = {saved: () => saved++, cancel: () => cancelled++};
+    const editor = prefs._layoutEditor(settings, null, window, actions);
+    assert.equal(editor.row.title, 'New preset');
+    assert.equal(editor.row.expanded, true);
+    row(editor, 'Number of segments').selected = 2;
+    row(editor, 'Unicode symbol').suffixes[0].text = '🦊';
+    row(editor, 'Opacity').suffixes[0].children[0].set_value(45);
+    row(editor, 'Reverse color order').suffixes[0].active = true;
+    assert.equal(values['layout-profiles'], '{}');
+    assert.equal(values['user-presets'], '[]');
+    const [name, save] = row(editor, 'Save as my preset').suffixes;
+    name.text = 'Fox';
+    save.emit('clicked');
+    const preset = JSON.parse(values['user-presets'])[0];
+    assert.equal(preset.symbol, '🦊');
+    assert.equal(preset.colors.length, 3);
+    assert.equal(preset.opacity, 45);
+    assert.equal(preset.reverse, true);
+    assert.equal(saved, 1);
+    assert.equal(values['layout-profiles'], '{}');
+    const duplicate = prefs._layoutEditor(settings, null, window, actions);
+    row(duplicate, 'Save as my preset').suffixes[0].text = 'Fox';
+    row(duplicate, 'Save as my preset').suffixes[1].emit('clicked');
+    assert.equal(saved, 1);
+    assert.equal(JSON.parse(values['user-presets']).length, 1);
+    row(duplicate, 'Discard new preset').suffixes[0].emit('clicked');
+    assert.equal(cancelled, 1);
+    assert.equal(values['layout-profiles'], '{}');
+});
