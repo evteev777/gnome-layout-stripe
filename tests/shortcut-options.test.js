@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {modifierSelection, withModifierShortcut, shortcutConflict, MODIFIER_SHORTCUTS, primaryAccelerators} from '../shortcut-options.js';
+import {modifierSelection, withModifierShortcut, shortcutConflict, MODIFIER_SHORTCUTS, primaryAccelerators, withoutRetiredCtrl} from '../shortcut-options.js';
 
 test('native modifier presets recognize manual settings and preserve unrelated shortcuts and XKB options', () => {
     const original = ['compose:ralt', 'caps:escape', 'grp:alt_shift_toggle', 'grp_led:scroll'];
@@ -45,7 +45,7 @@ test('shortcut conflicts exclude the edited action but include the opposite dire
 test('left and right modifier combinations replace other managed shortcuts and are recognized after reopening', () => {
     const primary = ['<Super>space', 'XF86Keyboard'];
     let plan = {options: ['compose:ralt', 'grp:caps_toggle'], accelerators: primary};
-    for (const index of [4, 5, 1, 0]) {
+    for (const index of [4, 1, 0]) {
         plan = withModifierShortcut(plan.options, plan.accelerators, index);
         assert.deepEqual(plan.options, ['compose:ralt']);
         assert.deepEqual(plan.accelerators, [...primary, ...(MODIFIER_SHORTCUTS[index].direct ? [] : MODIFIER_SHORTCUTS[index].accelerators)]);
@@ -56,11 +56,19 @@ test('left and right modifier combinations replace other managed shortcuts and a
 
 
 test('legacy left/right bindings are removed when enabling the extension-owned shortcut', () => {
-    for (const index of [4, 5]) {
+    for (const index of [4]) {
         const legacy = ['<Super>space', ...MODIFIER_SHORTCUTS[index].accelerators];
         const plan = withModifierShortcut([], legacy, index);
         assert.deepEqual(plan.accelerators, ['<Super>space']);
         assert.equal(modifierSelection(plan.options, plan.accelerators, plan.direct), index);
         assert.equal(modifierSelection(['grp:caps_toggle'], plan.accelerators, plan.direct), -1);
     }
+});
+
+
+test('retired Ctrl combinations are removed without touching active shortcuts', () => {
+    const old = ['<Super>space', '<Ctrl>Control_L', '<Control>Control_R', '<Shift>Shift_L'];
+    assert.deepEqual(withoutRetiredCtrl(old), ['<Super>space', '<Shift>Shift_L']);
+    assert.deepEqual(primaryAccelerators(old), ['<Super>space']);
+    assert.ok(MODIFIER_SHORTCUTS.every(s => !/right Ctrl|Double/.test(s.label)));
 });

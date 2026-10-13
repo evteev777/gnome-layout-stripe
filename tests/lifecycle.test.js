@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import * as common from '../common.js';
-import {DIRECT_SHORTCUT_KEY} from '../shortcut-options.js';
+import {DIRECT_SHORTCUT_KEY, withoutRetiredCtrl} from '../shortcut-options.js';
 import {PanelVisibility} from '../panel-visibility.js';
 
 class Signals {
@@ -21,7 +21,7 @@ class Signals {
 }
 
 test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on disable', () => {
-    const values = {edge: 'bottom', thickness: 4, opacity: 100, reverse: false,
+    const values = {[DIRECT_SHORTCUT_KEY]: [], edge: 'bottom', thickness: 4, opacity: 100, reverse: false,
         'all-monitors': true, 'show-fullscreen': false, 'layout-colors': '{}',
         'fallback-colors': ['#808080'], 'layout-profiles': '{}', 'profile-format-version': 2, 'show-panel-symbol': true, 'show-system-label': true};
     const settings = Object.assign(new Signals(), {
@@ -97,7 +97,7 @@ test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on 
         St, Extension: class {getSettings() {return settings;}},
         Main: {layoutManager, sessionMode, uiGroup, panel, wm}, Keyboard: {getInputSourceManager: () => manager},
         global: {display}, Meta: {KeyBindingFlags: {IGNORE_AUTOREPEAT: 8}, KeyBindingAction: {NONE: 0}},
-        Shell: {ActionMode: {NORMAL: 1, OVERVIEW: 2, POPUP: 4}}, DIRECT_SHORTCUT_KEY, ...common, console, LayoutIndicator, PanelVisibility, Gio: {Settings: class extends Signals {
+        Shell: {ActionMode: {NORMAL: 1, OVERVIEW: 2, POPUP: 4}}, DIRECT_SHORTCUT_KEY, withoutRetiredCtrl, ...common, console, LayoutIndicator, PanelVisibility, Gio: {Settings: class extends Signals {
             constructor() {super(); inputSettings = this;}
             get_value() {return {deep_unpack: () => [['xkb', 'ru'], ['xkb', 'us']]};}
         }},

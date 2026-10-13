@@ -4,7 +4,7 @@ import St from 'gi://St';
 import Gio from 'gi://Gio';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
-import {DIRECT_SHORTCUT_KEY} from './shortcut-options.js';
+import {DIRECT_SHORTCUT_KEY, withoutRetiredCtrl} from './shortcut-options.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Keyboard from 'resource:///org/gnome/shell/ui/status/keyboard.js';
@@ -25,6 +25,10 @@ export default class LayoutStripe extends Extension {
             const inputSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.input-sources'});
             migrateSettings(this._settings, inputSettings.get_value('sources').deep_unpack());
             this._manager = Keyboard.getInputSourceManager();
+            const direct = this._settings.get_strv(DIRECT_SHORTCUT_KEY);
+            const retained = withoutRetiredCtrl(direct);
+            if (retained.length !== direct.length)
+                this._settings.set_strv(DIRECT_SHORTCUT_KEY, retained);
             const action = Main.wm.addKeybinding(DIRECT_SHORTCUT_KEY, this._settings,
                 Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
                 Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW | Shell.ActionMode.POPUP,

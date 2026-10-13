@@ -38,7 +38,7 @@ test('system indicator hiding resists Shell visibility changes and restores on d
 
 test('reset restores standard profiles and display choices without deleting user presets', () => {
     const defaults = {edge: 'bottom', thickness: 6, 'all-monitors': true, 'show-fullscreen': false,
-        'fallback-colors': [DEFAULT_GREEN], 'show-panel-symbol': true, 'show-system-label': false,
+        'fallback-colors': [DEFAULT_GREEN], 'show-panel-symbol': true, 'show-system-label': true,
         'layout-profiles': '{}', 'layout-colors': '{}', opacity: 100, reverse: false};
     const values = {...defaults, edge: 'right', thickness: 88, 'all-monitors': true,
         'show-panel-symbol': false, 'show-system-label': false, 'fallback-colors': ['#123456'],
@@ -52,7 +52,7 @@ test('reset restores standard profiles and display choices without deleting user
     assert.equal(values.thickness, 6);
     assert.equal(values.edge, 'bottom');
     assert.equal(values['show-panel-symbol'], true);
-    assert.equal(values['show-system-label'], false);
+    assert.equal(values['show-system-label'], true);
     assert.equal(values['layout-colors'], '{}');
     const english = profileFor({type: 'xkb', id: 'us'}, JSON.parse(values['layout-profiles']), values['fallback-colors']);
     assert.equal(english.hidden, true);
@@ -69,6 +69,6 @@ test('schema has the exact screenshot green, 6px and both independent panel cont
     assert.match(xml, /name="fallback-colors"[\s\S]*?#57E389/);
     assert.match(xml, /name="thickness"[\s\S]*?<default>6<\/default>/);
     assert.match(xml, /name="show-panel-symbol"/);
-    assert.match(xml, /name="show-system-label"[\s\S]*?<default>false<\/default>/);
+    assert.match(xml, /name="show-system-label"[\s\S]*?<default>true<\/default>/);
     assert.match(xml, /name="all-monitors"[\s\S]*?<default>true<\/default>/);
 });

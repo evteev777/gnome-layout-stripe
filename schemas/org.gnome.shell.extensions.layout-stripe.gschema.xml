@@ -55,7 +55,7 @@
       <summary>Show the Unicode symbol in the top panel</summary>
     </key>
     <key name="show-system-label" type="b">
-      <default>false</default>
+      <default>true</default>
       <summary>Show the system input source indicator</summary>
     </key>
     <key name="user-presets" type="s">

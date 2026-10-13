@@ -51,8 +51,8 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
         general.add(panelGroup);
         this._switch(panelGroup, settings, 'show-panel-symbol', 'Show country flag or custom Unicode symbol',
             'Use the symbol from the active layout preset, even when its stripe is hidden.');
-        this._switch(panelGroup, settings, 'show-system-label', 'Show system layout label',
-            'Keep GNOME’s standard layout indicator, such as en or ru.');
+        this._switch(panelGroup, settings, 'show-system-label', 'Disable system layout label',
+            'Hide GNOME’s standard layout indicator, such as en or ru.', true);
         const cleanupShortcuts = addShortcutPreferences(general, window, settings);
         const resetGroup = new Adw.PreferencesGroup({title: 'Defaults'});
         general.add(resetGroup);
@@ -154,7 +154,7 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
         window._stripeInputSettings = inputSettings;
     }
 
-    _switch(group, settings, key, title, subtitle) {
+    _switch(group, settings, key, title, subtitle, inverted = false) {
         const row = Adw.SwitchRow ? new Adw.SwitchRow({title, subtitle}) :
             new Adw.ActionRow({title, subtitle});
         const control = Adw.SwitchRow ? row : new Gtk.Switch({valign: Gtk.Align.CENTER});
@@ -162,7 +162,8 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             row.add_suffix(control);
             row.activatable_widget = control;
         }
-        settings.bind(key, control, 'active', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind(key, control, 'active', Gio.SettingsBindFlags.DEFAULT |
+            (inverted ? Gio.SettingsBindFlags.INVERT_BOOLEAN : 0));
         group.add(row);
     }
 

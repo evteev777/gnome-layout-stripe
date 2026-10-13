@@ -19,7 +19,7 @@ The stripe passes clicks through and does not reserve workspace space.
 | All monitors | On |
 | Show over fullscreen windows | Off |
 | Unicode symbol in the top panel | On |
-| System layout indicator | Off |
+| Disable system layout label | Off (system indicator visible) |
 | Unknown-layout color | Green (`#57E389`) |
 
 Built-in presets: English (US), English (GB), German, French, Italian, Spanish,
@@ -50,6 +50,10 @@ the saved preset do not alter other layouts.
 **Reset** restores defaults and automatic preset selection without deleting
 saved presets or changing the system's input sources.
 
+The **Disable system layout label** switch hides GNOME's indicator when enabled.
+It is off by default. Existing explicitly saved visibility settings are preserved;
+the switch uses the inverse of the existing setting.
+
 ## Panel menus
 
 Left-click the Unicode indicator to select an input source. Each entry shows its
@@ -66,15 +70,15 @@ Menu or Shift+F10 opens settings. Escape and clicking outside close the popup.
 ## Keyboard shortcuts
 
 The Stripe page offers one **Additional layout shortcut** selector: None, Alt+Shift,
-Ctrl+Shift, Caps Lock, Left + right Ctrl or Left + right Shift. Standard next/previous
+Ctrl+Shift, Caps Lock or Left + right Shift. Standard next/previous
 shortcuts remain in GNOME Keyboard Settings, available through the indicator's
 right-click menu.
 
 Alt+Shift and Ctrl+Shift use GNOME's next-input-source bindings for both key orders
-and left/right modifier keys. Left + right combinations hold both corresponding
-modifier keys together, in either order. They use an extension-owned GNOME
+and left/right modifier keys. Left + right Shift holds both Shift
+keys together, in either order. They use an extension-owned GNOME
 keybinding that activates the next configured source directly, without the system
-input-source popup. These two combinations require Layout Stripe to be enabled.
+input-source popup. This combination requires Layout Stripe to be enabled.
 Caps Lock uses an XKB group switch. Choosing None
 removes the additional switch while keeping standard shortcuts such as Super+Space.
 Changing the preset also preserves unrelated XKB options such as Compose settings.
@@ -83,12 +87,12 @@ Existing manual Alt+Shift/Ctrl+Shift bindings are recognized. A mixed or unsuppo
 system configuration has no selected option and is left unchanged until an explicit
 selection; there is no selectable Custom item. Opening preferences does not change
 system settings. Alt+Shift/Ctrl+Shift/Caps Lock edits persist after disabling or
-uninstalling the extension. The extension-owned left/right keybinding is removed
+uninstalling the extension. The extension-owned Shift keybinding is removed
 on disable and restored on enable. Layout Stripe's Reset does not change shortcuts.
 After upgrading from the system-binding implementation, choose **None** and then
-the desired left/right combination again to replace the old bindings.
+Left + right Shift again to replace the old bindings.
 
-Double-tap Ctrl/Shift shortcuts are not implemented. Shell stage event handlers
+Left + right Ctrl and double-tap Ctrl/Shift shortcuts are deferred and not offered. Shell stage event handlers
 cannot reliably observe keyboard events delivered to focused Wayland clients.
 A double-tap implementation needs a separate approach that preserves ordinary
 Ctrl/Shift shortcuts; it must not rely on a stage-only listener or swallow modifier

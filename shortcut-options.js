@@ -9,7 +9,6 @@ export const MODIFIER_SHORTCUTS = [
     {label: 'Ctrl+Shift', option: null,
         accelerators: ['<Control>Shift_L', '<Control>Shift_R', '<Shift>Control_L', '<Shift>Control_R']},
     {label: 'Caps Lock', option: 'grp:caps_toggle', accelerators: []},
-    {label: 'Left + right Ctrl', option: null, direct: true, accelerators: ['<Control>Control_L', '<Control>Control_R']},
     {label: 'Left + right Shift', option: null, direct: true, accelerators: ['<Shift>Shift_L', '<Shift>Shift_R']},
 ];
 
@@ -17,8 +16,12 @@ function canonical(value) {
     return value.replaceAll('<Ctrl>', '<Control>').replaceAll('<Primary>', '<Control>');
 }
 
+export function withoutRetiredCtrl(accelerators) {
+    return accelerators.filter(value => !['<Control>Control_L', '<Control>Control_R'].includes(canonical(value)));
+}
+
 export function modifierAccelerators(accelerators) {
-    const managed = new Set(MODIFIER_SHORTCUTS.flatMap(shortcut => shortcut.accelerators));
+    const managed = new Set([...MODIFIER_SHORTCUTS.flatMap(shortcut => shortcut.accelerators), '<Control>Control_L', '<Control>Control_R']);
     return accelerators.filter(value => managed.has(canonical(value)));
 }
 

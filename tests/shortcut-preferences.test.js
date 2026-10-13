@@ -158,16 +158,12 @@ test('left/right choices use the extension binding, restore on reopen, and None 
     assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
     assert.deepEqual(settings.values[options.DIRECT_SHORTCUT_KEY], options.MODIFIER_SHORTCUTS[4].accelerators);
     assert.equal(row.selected, 4);
-    row.selected = 5;
-    row.emit('notify::selected');
-    assert.deepEqual(settings.values[options.DIRECT_SHORTCUT_KEY], options.MODIFIER_SHORTCUTS[5].accelerators);
-    assert.equal(row.selected, 5);
     bindings.failWrites.add('switch-input-source');
     row.selected = 3;
     row.emit('notify::selected');
-    assert.equal(row.selected, 5);
+    assert.equal(row.selected, 4);
     assert.deepEqual(inputs.values['xkb-options'], []);
-    assert.deepEqual(settings.values[options.DIRECT_SHORTCUT_KEY], options.MODIFIER_SHORTCUTS[5].accelerators);
+    assert.deepEqual(settings.values[options.DIRECT_SHORTCUT_KEY], options.MODIFIER_SHORTCUTS[4].accelerators);
     bindings.failWrites.clear();
     row.selected = 0;
     row.emit('notify::selected');
@@ -175,4 +171,12 @@ test('left/right choices use the extension binding, restore on reopen, and None 
     assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
     cleanup();
     assert.equal(settings.handlers.size, 0);
+});
+
+
+test('opening preferences retires old Ctrl bindings while preserving normal input-source shortcuts', () => {
+    const {bindings, page, cleanup} = create([], ['<Super>space', '<Control>Control_L', '<Control>Control_R']);
+    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
+    assert.equal(page.children[0].children[0].selected, 0);
+    cleanup();
 });

@@ -4,7 +4,7 @@ import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk?version=4.0';
-import {DIRECT_SHORTCUT_KEY, MODIFIER_SHORTCUTS, modifierSelection, withModifierShortcut, shortcutConflict} from './shortcut-options.js';
+import {DIRECT_SHORTCUT_KEY, MODIFIER_SHORTCUTS, withoutRetiredCtrl, modifierSelection, withModifierShortcut, shortcutConflict} from './shortcut-options.js';
 
 function normalizeAccelerator(value) {
     const [valid, key, modifiers] = Gtk.accelerator_parse(value);
@@ -14,8 +14,14 @@ function normalizeAccelerator(value) {
 export function addShortcutPreferences(page, window, settings) {
     const bindings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.keybindings'});
     const inputs = new Gio.Settings({schema_id: 'org.gnome.desktop.input-sources'});
+    for (const [object, key] of [[settings, DIRECT_SHORTCUT_KEY], [bindings, 'switch-input-source']]) {
+        const current = object.get_strv(key);
+        const retained = withoutRetiredCtrl(current);
+        if (current.length !== retained.length)
+            object.set_strv(key, retained);
+    }
     const group = new Adw.PreferencesGroup({title: 'Keyboard shortcuts',
-        description: 'Standard next/previous shortcuts stay in GNOME Keyboard Settings. Left/right combinations require Layout Stripe to be enabled.'});
+        description: 'Standard next/previous shortcuts stay in GNOME Keyboard Settings. Left + right Shift require Layout Stripe to be enabled.'});
     page.add(group);
     const signals = [];
     const modifiers = new Adw.ComboRow({title: 'Additional layout shortcut',
