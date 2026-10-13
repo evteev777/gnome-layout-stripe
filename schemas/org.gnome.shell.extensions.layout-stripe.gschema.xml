@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.layout-stripe" path="/org/gnome/shell/extensions/layout-stripe/">
+    <key name="edge" type="s">
+      <choices>
+        <choice value="bottom" />
+        <choice value="top" />
+        <choice value="left" />
+        <choice value="right" />
+      </choices>
+      <default>'bottom'</default>
+      <summary>Screen edge</summary>
+    </key>
+    <key name="thickness" type="i">
+      <range min="1" max="100" />
+      <default>3</default>
+      <summary>Stripe thickness in logical pixels</summary>
+    </key>
+    <key name="reverse" type="b">
+      <default>false</default>
+      <summary>Legacy global color order (migration only)</summary>
+    </key>
+    <key name="all-monitors" type="b">
+      <default>true</default>
+      <summary>Show the stripe on all monitors</summary>
+    </key>
+    <key name="show-fullscreen" type="b">
+      <default>false</default>
+      <summary>Show over fullscreen windows</summary>
+    </key>
+    <key name="opacity" type="i">
+      <range min="10" max="100" />
+      <default>100</default>
+      <summary>Legacy global opacity (migration only)</summary>
+    </key>
+    <key name="layout-colors" type="s">
+      <default>'{}'</default>
+      <summary>Legacy layout palettes (migration only)</summary>
+    </key>
+    <key name="layout-profiles" type="s">
+      <default>'{}'</default>
+      <summary>Per-source profiles encoded as JSON</summary>
+    </key>
+    <key name="profile-format-version" type="i">
+      <default>0</default>
+      <summary>Completed settings migration version</summary>
+    </key>
+    <key name="show-panel-symbol" type="b">
+      <default>true</default>
+      <summary>Show the Unicode symbol in the top panel</summary>
+    </key>
+    <key name="show-system-label" type="b">
+      <default>false</default>
+      <summary>Show the system input source indicator</summary>
+    </key>
+    <key name="user-presets" type="s">
+      <default>'[]'</default>
+      <summary>Saved user presets encoded as JSON</summary>
+    </key>
+    <key name="fallback-colors" type="as">
+      <default>['#57E389']</default>
+      <summary>Colors for unknown input sources</summary>
+    </key>
+  </schema>
+</schemalist>

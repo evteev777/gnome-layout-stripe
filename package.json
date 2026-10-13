@@ -1,0 +1,17 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "lint": "eslint .",
+    "build": "python3 scripts/package.py"
+  },
+  "name": "gnome-layout-stripe",
+  "version": "1.5.0",
+  "license": "GPL-3.0-or-later",
+  "description": "Keyboard layout indicators for GNOME Shell",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0"
+  }
+}

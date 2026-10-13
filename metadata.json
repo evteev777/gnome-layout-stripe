@@ -1,0 +1,15 @@
+{
+  "uuid": "layout-stripe@evteev.ru",
+  "name": "Layout Stripe",
+  "description": "Keyboard layout indicators, with the option to enable/disable and configure:\n- screen edge: a strip in the colors of the country flag\n- top panel: a flag (or any other Unicode symbol) and/or the system layout indicator",
+  "shell-version": [
+    "46",
+    "47",
+    "48",
+    "49",
+    "50"
+  ],
+  "version-name": "1.5",
+  "settings-schema": "org.gnome.shell.extensions.layout-stripe",
+  "url": "https://github.com/evteev777/gnome-layout-stripe"
+}
