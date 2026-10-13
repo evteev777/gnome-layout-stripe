@@ -1,5 +1,7 @@
 # Layout Stripe
 
+**1.0 Beta 1** — the first public prerelease.
+
 Keyboard layout indicators for GNOME Shell:
 
 - **Screen edge:** a configurable stripe using a country's flag colors.
@@ -43,10 +45,11 @@ saved presets or changing the system's input sources.
 
 ## Install
 
-Build the package as described below, then run:
+Download the extension ZIP from [GitHub Releases](https://github.com/evteev777/gnome-layout-stripe/releases)
+or build it as described below. From the directory containing the downloaded ZIP, run:
 
 ```bash
-gnome-extensions install --force dist/layout-stripe@evteev.ru.shell-extension.zip
+gnome-extensions install --force ./layout-stripe@evteev.ru.shell-extension.zip
 ```
 
 Log out and back in, then enable the extension and open its preferences:
@@ -85,6 +88,10 @@ Metadata enables GNOME Shell 46–50. The intended baseline is GNOME 46 on X11 o
 Wayland and GNOME 50 on Wayland. Other desktop environments are not supported.
 Future GNOME releases are deliberately not listed.
 
+**Confirmed by the maintainer:** GNOME Shell 50.1 on Wayland, including the
+emoji chooser. GNOME 46–49 remain enabled for beta testing and have not yet been
+validated on real desktops.
+
 Automated tests use simulated Shell/GTK objects and do not certify desktop
 compatibility. Before catalog submission, complete the real-desktop checks in
 [REVIEW.md](REVIEW.md), especially GNOME 46 and intermediate releases.
@@ -107,7 +114,9 @@ glib-compile-schemas --strict --dry-run schemas
 npm run build
 ```
 
-The package is written to `dist/`. It contains only runtime modules, metadata,
+The package is written to `dist/`. The beta release workflow runs the same checks
+and publishes the ZIP and its SHA-256 checksum after a version change is merged
+into `master`; it can also be run manually. It contains only runtime modules, metadata,
 the schema XML and LICENSE. Tests, Node dependencies and build tooling stay in
 the repository. GitHub Actions runs lint, tests, schema validation and packaging.
 

@@ -7,7 +7,7 @@
     "build": "python3 scripts/package.py"
   },
   "name": "gnome-layout-stripe",
-  "version": "1.6.0",
+  "version": "1.0.0-beta.1",
   "license": "GPL-3.0-or-later",
   "description": "Keyboard layout indicators for GNOME Shell",
   "devDependencies": {

@@ -36,6 +36,12 @@ tests simulate their behavior; they do not establish compatibility with a real
 Shell release. The compatibility controls in preferences remain useful across
 GTK/libadwaita versions used by different distributions.
 
+## Desktop verification
+
+The maintainer reported successful testing on GNOME Shell 50.1 / Wayland,
+including the native emoji chooser. This is confirmation on one system; the
+individual matrix below still needs results for other supported releases.
+
 ## Desktop checks still required
 
 For every release listed in metadata, record the actual result before submitting
@@ -59,4 +65,5 @@ Use the runtime ZIP from `npm run build`. Attach representative screenshots and
 review the current [GNOME review guidelines](https://gjs.guide/extensions/review-guidelines/review-guidelines.html).
 The maintainer must understand and be able to explain submitted code, including
 code developed with AI assistance. Catalog review is not a substitute for runtime
-validation. This branch does not publish a release or submit to the catalog.
+validation. The beta release workflow publishes a GitHub prerelease after the version is
+merged into master. Catalog submission remains a separate step.
