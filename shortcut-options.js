@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+export const DIRECT_SHORTCUT_KEY = 'layout-stripe-modifier-shortcut';
+
 export const MODIFIER_SHORTCUTS = [
     {label: 'None', option: null, accelerators: []},
     {label: 'Alt+Shift', option: null,
@@ -7,8 +9,8 @@ export const MODIFIER_SHORTCUTS = [
     {label: 'Ctrl+Shift', option: null,
         accelerators: ['<Control>Shift_L', '<Control>Shift_R', '<Shift>Control_L', '<Shift>Control_R']},
     {label: 'Caps Lock', option: 'grp:caps_toggle', accelerators: []},
-    {label: 'Left + right Ctrl', option: null, accelerators: ['<Control>Control_L', '<Control>Control_R']},
-    {label: 'Left + right Shift', option: null, accelerators: ['<Shift>Shift_L', '<Shift>Shift_R']},
+    {label: 'Left + right Ctrl', option: null, direct: true, accelerators: ['<Control>Control_L', '<Control>Control_R']},
+    {label: 'Left + right Shift', option: null, direct: true, accelerators: ['<Shift>Shift_L', '<Shift>Shift_R']},
 ];
 
 function canonical(value) {
@@ -25,7 +27,13 @@ export function primaryAccelerators(accelerators) {
     return accelerators.filter(value => !modifiers.has(value));
 }
 
-export function modifierSelection(options, accelerators = []) {
+export function modifierSelection(options, accelerators = [], direct = []) {
+    if (direct.length) {
+        const index = MODIFIER_SHORTCUTS.findIndex(shortcut => shortcut.direct &&
+            shortcut.accelerators.length === direct.length &&
+            shortcut.accelerators.every(value => direct.map(canonical).includes(value)));
+        return index >= 0 && modifierSelection(options, accelerators) === 0 ? index : -1;
+    }
     const groups = options.filter(option => option.startsWith('grp:'));
     const native = new Set(accelerators.map(canonical));
     const active = MODIFIER_SHORTCUTS.map((shortcut, index) =>
@@ -41,11 +49,13 @@ export function modifierSelection(options, accelerators = []) {
 export function withModifierShortcut(options, accelerators, index) {
     const shortcut = MODIFIER_SHORTCUTS[index];
     if (!shortcut)
-        return {options: [...options], accelerators: [...accelerators]};
+        return {options: [...options], accelerators: [...accelerators], direct: []};
     const groups = options.filter(option => !option.startsWith('grp:'));
     if (shortcut.option)
         groups.push(shortcut.option);
-    return {options: groups, accelerators: [...primaryAccelerators(accelerators), ...shortcut.accelerators]};
+    return {options: groups,
+        accelerators: [...primaryAccelerators(accelerators), ...(shortcut.direct ? [] : shortcut.accelerators)],
+        direct: shortcut.direct ? [...shortcut.accelerators] : []};
 }
 
 export function shortcutConflict(bindings, key, accelerator, normalize) {

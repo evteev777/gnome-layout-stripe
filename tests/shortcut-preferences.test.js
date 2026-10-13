@@ -46,6 +46,7 @@ function create(inputOptions = ['compose:ralt', 'grp:alt_shift_toggle'], acceler
     const bindings = new Settings({'switch-input-source': accelerators,
         'switch-input-source-backward': ['<Super><Shift>space'], close: ['<Alt>F4']});
     const inputs = new Settings({'xkb-options': inputOptions});
+    const settings = new Settings({[options.DIRECT_SHORTCUT_KEY]: []});
     const Gtk = {
         StringList: {new: list => list}, INVALID_LIST_POSITION: 4294967295,
         accelerator_parse(value) {
@@ -73,8 +74,8 @@ function create(inputOptions = ['compose:ralt', 'grp:alt_shift_toggle'], acceler
     });
     const page = new Widget();
     const window = new Widget();
-    const cleanup = add(page, window);
-    return {page, bindings, inputs, cleanup, window};
+    const cleanup = add(page, window, settings);
+    return {page, bindings, inputs, settings, cleanup, window};
 }
 
 test('opening shortcut preferences does not change system settings; edits preserve other options', () => {
@@ -146,4 +147,32 @@ test('preferences expose only the additional combinations, without a selectable 
     assert.equal(inputs.writes.length, 0);
     assert.equal(bindings.writes.length, 0);
     cleanup();
+});
+
+
+test('left/right choices use the extension binding, restore on reopen, and None clears it', () => {
+    const {page, bindings, inputs, settings, cleanup} = create([], ['<Super>space', ...options.MODIFIER_SHORTCUTS[4].accelerators]);
+    const row = page.children[0].children[0];
+    row.selected = 4;
+    row.emit('notify::selected');
+    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
+    assert.deepEqual(settings.values[options.DIRECT_SHORTCUT_KEY], options.MODIFIER_SHORTCUTS[4].accelerators);
+    assert.equal(row.selected, 4);
+    row.selected = 5;
+    row.emit('notify::selected');
+    assert.deepEqual(settings.values[options.DIRECT_SHORTCUT_KEY], options.MODIFIER_SHORTCUTS[5].accelerators);
+    assert.equal(row.selected, 5);
+    bindings.failWrites.add('switch-input-source');
+    row.selected = 3;
+    row.emit('notify::selected');
+    assert.equal(row.selected, 5);
+    assert.deepEqual(inputs.values['xkb-options'], []);
+    assert.deepEqual(settings.values[options.DIRECT_SHORTCUT_KEY], options.MODIFIER_SHORTCUTS[5].accelerators);
+    bindings.failWrites.clear();
+    row.selected = 0;
+    row.emit('notify::selected');
+    assert.deepEqual(settings.values[options.DIRECT_SHORTCUT_KEY], []);
+    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
+    cleanup();
+    assert.equal(settings.handlers.size, 0);
 });

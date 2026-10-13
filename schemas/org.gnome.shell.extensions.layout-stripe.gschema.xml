@@ -2,6 +2,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <schemalist>
   <schema id="org.gnome.shell.extensions.layout-stripe" path="/org/gnome/shell/extensions/layout-stripe/">
+    <key name="layout-stripe-modifier-shortcut" type="as">
+      <default>[]</default>
+      <summary>Extension-owned modifier shortcut accelerators</summary>
+    </key>
     <key name="edge" type="s">
       <choices>
         <choice value="bottom" />

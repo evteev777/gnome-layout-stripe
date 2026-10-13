@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import * as common from '../common.js';
+import {DIRECT_SHORTCUT_KEY} from '../shortcut-options.js';
 import {PanelVisibility} from '../panel-visibility.js';
 
 class Signals {
@@ -72,16 +73,54 @@ test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on 
     const code = fs.readFileSync(new URL('../extension.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '')
         .replace('export default class LayoutStripe', 'class LayoutStripe');
+    let shortcutHandler;
+    let registered = false;
+    const wm = {
+        addKeybinding(name, schema, flags, modes, handler) {
+            assert.equal(name, DIRECT_SHORTCUT_KEY);
+            assert.equal(schema, settings);
+            assert.equal(flags, 8);
+            assert.equal(modes, 7);
+            assert.equal(registered, false);
+            registered = true;
+            shortcutHandler = handler;
+            return 42;
+        },
+        removeKeybinding(name) {
+            assert.equal(name, DIRECT_SHORTCUT_KEY);
+            assert.equal(registered, true);
+            registered = false;
+            shortcutHandler = null;
+        },
+    };
     const Class = vm.runInNewContext(`${code}\nLayoutStripe;`, {
         St, Extension: class {getSettings() {return settings;}},
-        Main: {layoutManager, sessionMode, uiGroup, panel}, Keyboard: {getInputSourceManager: () => manager},
-        global: {display}, ...common, console, LayoutIndicator, PanelVisibility, Gio: {Settings: class extends Signals {
+        Main: {layoutManager, sessionMode, uiGroup, panel, wm}, Keyboard: {getInputSourceManager: () => manager},
+        global: {display}, Meta: {KeyBindingFlags: {IGNORE_AUTOREPEAT: 8}, KeyBindingAction: {NONE: 0}},
+        Shell: {ActionMode: {NORMAL: 1, OVERVIEW: 2, POPUP: 4}}, DIRECT_SHORTCUT_KEY, ...common, console, LayoutIndicator, PanelVisibility, Gio: {Settings: class extends Signals {
             constructor() {super(); inputSettings = this;}
             get_value() {return {deep_unpack: () => [['xkb', 'ru'], ['xkb', 'us']]};}
         }},
     });
     const extension = new Class();
     extension.enable();
+    const activated = [];
+    const sources = [0, 2, 7].map(index => ({index, type: 'xkb', id: 'ru', activate(interactive) {
+        assert.equal(interactive, true);
+        activated.push(index);
+        manager.currentSource = this;
+    }}));
+    manager.inputSources = Object.fromEntries(sources.map(s => [s.index, s]));
+    manager.currentSource = sources[0];
+    for (let i = 0; i < 3; i++) shortcutHandler();
+    assert.deepEqual(activated, [2, 7, 0]);
+    sessionMode.isLocked = true;
+    shortcutHandler();
+    sessionMode.isLocked = false;
+    assert.equal(activated.length, 3);
+    manager.inputSources = {0: sources[0]};
+    shortcutHandler();
+    assert.equal(activated.length, 3);
     for (let i = 0; i < 3; i++)
         inputSettings.emit('changed::xkb-options');
     assert.equal(reloads, 3);
@@ -124,6 +163,7 @@ test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on 
     layoutManager.emit('monitors-changed');
     assert.equal(live.size, 0);
     extension.disable();
+    assert.equal(registered, false);
     for (const obj of [settings, inputSettings, manager, display, layoutManager, sessionMode])
         assert.equal(obj.handlers.size, 0);
     layoutManager.primaryMonitor = {index: 0, x: 0, y: 0, width: 1920, height: 1080};

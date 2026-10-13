@@ -20,7 +20,7 @@ test('native modifier presets recognize manual settings and preserve unrelated s
     assert.deepEqual(none.options, ['compose:ralt', 'caps:escape', 'grp_led:scroll']);
     assert.deepEqual(none.accelerators, primary);
     assert.equal(modifierSelection(none.options, none.accelerators), 0);
-    assert.deepEqual(withModifierShortcut(original, primary, 99), {options: original, accelerators: primary});
+    assert.deepEqual(withModifierShortcut(original, primary, 99), {options: original, accelerators: primary, direct: []});
 });
 
 test('unrecognized configurations have no selected preset; None leaves primary shortcuts intact', () => {
@@ -48,7 +48,19 @@ test('left and right modifier combinations replace other managed shortcuts and a
     for (const index of [4, 5, 1, 0]) {
         plan = withModifierShortcut(plan.options, plan.accelerators, index);
         assert.deepEqual(plan.options, ['compose:ralt']);
-        assert.deepEqual(plan.accelerators, [...primary, ...MODIFIER_SHORTCUTS[index].accelerators]);
-        assert.equal(modifierSelection(plan.options, plan.accelerators), index);
+        assert.deepEqual(plan.accelerators, [...primary, ...(MODIFIER_SHORTCUTS[index].direct ? [] : MODIFIER_SHORTCUTS[index].accelerators)]);
+        assert.deepEqual(plan.direct, MODIFIER_SHORTCUTS[index].direct ? MODIFIER_SHORTCUTS[index].accelerators : []);
+        assert.equal(modifierSelection(plan.options, plan.accelerators, plan.direct), index);
+    }
+});
+
+
+test('legacy left/right bindings are removed when enabling the extension-owned shortcut', () => {
+    for (const index of [4, 5]) {
+        const legacy = ['<Super>space', ...MODIFIER_SHORTCUTS[index].accelerators];
+        const plan = withModifierShortcut([], legacy, index);
+        assert.deepEqual(plan.accelerators, ['<Super>space']);
+        assert.equal(modifierSelection(plan.options, plan.accelerators, plan.direct), index);
+        assert.equal(modifierSelection(['grp:caps_toggle'], plan.accelerators, plan.direct), -1);
     }
 });

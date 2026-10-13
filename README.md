@@ -72,16 +72,21 @@ right-click menu.
 
 Alt+Shift and Ctrl+Shift use GNOME's next-input-source bindings for both key orders
 and left/right modifier keys. Left + right combinations hold both corresponding
-modifier keys together, in either order, and use native GNOME bindings. Caps Lock
-uses an XKB group switch. Choosing None
+modifier keys together, in either order. They use an extension-owned GNOME
+keybinding that activates the next configured source directly, without the system
+input-source popup. These two combinations require Layout Stripe to be enabled.
+Caps Lock uses an XKB group switch. Choosing None
 removes the additional switch while keeping standard shortcuts such as Super+Space.
 Changing the preset also preserves unrelated XKB options such as Compose settings.
 
 Existing manual Alt+Shift/Ctrl+Shift bindings are recognized. A mixed or unsupported
 system configuration has no selected option and is left unchanged until an explicit
 selection; there is no selectable Custom item. Opening preferences does not change
-system settings. Shortcut edits persist after disabling or uninstalling the
-extension, and Layout Stripe's Reset does not change them.
+system settings. Alt+Shift/Ctrl+Shift/Caps Lock edits persist after disabling or
+uninstalling the extension. The extension-owned left/right keybinding is removed
+on disable and restored on enable. Layout Stripe's Reset does not change shortcuts.
+After upgrading from the system-binding implementation, choose **None** and then
+the desired left/right combination again to replace the old bindings.
 
 Double-tap Ctrl/Shift shortcuts are not implemented. Shell stage event handlers
 cannot reliably observe keyboard events delivered to focused Wayland clients.

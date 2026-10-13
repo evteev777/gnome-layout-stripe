@@ -53,7 +53,7 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             'Use the symbol from the active layout preset, even when its stripe is hidden.');
         this._switch(panelGroup, settings, 'show-system-label', 'Show system layout label',
             'Keep GNOME’s standard layout indicator, such as en or ru.');
-        const cleanupShortcuts = addShortcutPreferences(general, window);
+        const cleanupShortcuts = addShortcutPreferences(general, window, settings);
         const resetGroup = new Adw.PreferencesGroup({title: 'Defaults'});
         general.add(resetGroup);
         const resetRow = new Adw.ActionRow({title: 'Reset settings to defaults',
