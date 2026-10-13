@@ -141,7 +141,7 @@ test('preferences expose only the additional combinations, without a selectable 
     const group = page.children[0];
     assert.equal(group.children.length, 1);
     const row = group.children[0];
-    assert.deepEqual([...row.model], ['None', 'Alt+Shift', 'Ctrl+Shift', 'Caps Lock']);
+    assert.deepEqual([...row.model], options.MODIFIER_SHORTCUTS.map(shortcut => shortcut.label));
     assert.equal(row.selected, 4294967295);
     assert.equal(inputs.writes.length, 0);
     assert.equal(bindings.writes.length, 0);

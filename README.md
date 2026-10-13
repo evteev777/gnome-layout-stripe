@@ -41,8 +41,12 @@ replaces the current symbol; manual text entry remains available.
 **My presets** saves complete configurations. **New preset** opens a temporary
 editor for a preset created from scratch, with colors, opacity, Hide, reverse and
 a Unicode symbol. Save adds it to My presets; Cancel discards the draft. Neither
-affects a configured input source. New names must be unique. Applying a preset copies its
-settings; subsequent changes to the saved preset do not alter other layouts.
+affects a configured input source. Saved presets expand into the same editor directly
+in **My presets**. Both editors offer an editable name and a dropdown of custom
+preset names. The dropdown fills only the name: saving an existing name replaces
+that custom preset, while a different name creates a copy. Built-in presets are
+never overwritten. Applying a preset copies its settings; subsequent changes to
+the saved preset do not alter other layouts.
 **Reset** restores defaults and automatic preset selection without deleting
 saved presets or changing the system's input sources.
 
@@ -62,11 +66,14 @@ Menu or Shift+F10 opens settings. Escape and clicking outside close the popup.
 ## Keyboard shortcuts
 
 The Stripe page offers one **Additional layout shortcut** selector: None, Alt+Shift,
-Ctrl+Shift or Caps Lock. Standard next/previous shortcuts remain in GNOME Keyboard
-Settings, available through the indicator's right-click menu.
+Ctrl+Shift, Caps Lock, Left + right Ctrl or Left + right Shift. Standard next/previous
+shortcuts remain in GNOME Keyboard Settings, available through the indicator's
+right-click menu.
 
 Alt+Shift and Ctrl+Shift use GNOME's next-input-source bindings for both key orders
-and left/right modifier keys. Caps Lock uses an XKB group switch. Choosing None
+and left/right modifier keys. Left + right combinations hold both corresponding
+modifier keys together, in either order, and use native GNOME bindings. Caps Lock
+uses an XKB group switch. Choosing None
 removes the additional switch while keeping standard shortcuts such as Super+Space.
 Changing the preset also preserves unrelated XKB options such as Compose settings.
 
@@ -75,6 +82,12 @@ system configuration has no selected option and is left unchanged until an expli
 selection; there is no selectable Custom item. Opening preferences does not change
 system settings. Shortcut edits persist after disabling or uninstalling the
 extension, and Layout Stripe's Reset does not change them.
+
+Double-tap Ctrl/Shift shortcuts are not implemented. Shell stage event handlers
+cannot reliably observe keyboard events delivered to focused Wayland clients.
+A double-tap implementation needs a separate approach that preserves ordinary
+Ctrl/Shift shortcuts; it must not rely on a stage-only listener or swallow modifier
+key events.
 
 The extension reloads GNOME's input-source manager when XKB options change. This
 works around GNOME 50.1 passing a layout object instead of an ID in its keymap

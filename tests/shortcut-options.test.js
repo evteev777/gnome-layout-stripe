@@ -20,7 +20,7 @@ test('native modifier presets recognize manual settings and preserve unrelated s
     assert.deepEqual(none.options, ['compose:ralt', 'caps:escape', 'grp_led:scroll']);
     assert.deepEqual(none.accelerators, primary);
     assert.equal(modifierSelection(none.options, none.accelerators), 0);
-    assert.deepEqual(withModifierShortcut(original, primary, 4), {options: original, accelerators: primary});
+    assert.deepEqual(withModifierShortcut(original, primary, 99), {options: original, accelerators: primary});
 });
 
 test('unrecognized configurations have no selected preset; None leaves primary shortcuts intact', () => {
@@ -39,4 +39,16 @@ test('shortcut conflicts exclude the edited action but include the opposite dire
     assert.equal(shortcutConflict(bindings, 'previous', 'Control+Space', normalize), 'next');
     assert.equal(shortcutConflict(bindings, 'next', 'Alt+F4', normalize), 'other');
     assert.equal(shortcutConflict(bindings, 'next', '', normalize), null);
+});
+
+
+test('left and right modifier combinations replace other managed shortcuts and are recognized after reopening', () => {
+    const primary = ['<Super>space', 'XF86Keyboard'];
+    let plan = {options: ['compose:ralt', 'grp:caps_toggle'], accelerators: primary};
+    for (const index of [4, 5, 1, 0]) {
+        plan = withModifierShortcut(plan.options, plan.accelerators, index);
+        assert.deepEqual(plan.options, ['compose:ralt']);
+        assert.deepEqual(plan.accelerators, [...primary, ...MODIFIER_SHORTCUTS[index].accelerators]);
+        assert.equal(modifierSelection(plan.options, plan.accelerators), index);
+    }
 });

@@ -7,6 +7,8 @@ export const MODIFIER_SHORTCUTS = [
     {label: 'Ctrl+Shift', option: null,
         accelerators: ['<Control>Shift_L', '<Control>Shift_R', '<Shift>Control_L', '<Shift>Control_R']},
     {label: 'Caps Lock', option: 'grp:caps_toggle', accelerators: []},
+    {label: 'Left + right Ctrl', option: null, accelerators: ['<Control>Control_L', '<Control>Control_R']},
+    {label: 'Left + right Shift', option: null, accelerators: ['<Shift>Shift_L', '<Shift>Shift_R']},
 ];
 
 function canonical(value) {
@@ -26,7 +28,8 @@ export function primaryAccelerators(accelerators) {
 export function modifierSelection(options, accelerators = []) {
     const groups = options.filter(option => option.startsWith('grp:'));
     const native = new Set(accelerators.map(canonical));
-    const active = [1, 2].filter(index => MODIFIER_SHORTCUTS[index].accelerators.some(value => native.has(value)));
+    const active = MODIFIER_SHORTCUTS.map((shortcut, index) =>
+        shortcut.accelerators.some(value => native.has(value)) ? index : -1).filter(index => index >= 0);
     if (!groups.length)
         return active.length === 0 ? 0 : active.length === 1 ? active[0] : -1;
     if (groups.length === 1 && groups[0] === 'grp:caps_toggle' && !active.length)

@@ -113,9 +113,8 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             for (const row of savedRows) savedGroup.remove(row);
             savedRows = [];
             for (const preset of userPresets(settings.get_string('user-presets'))) {
-                const row = new Adw.ActionRow({title: preset.name,
-                    subtitle: this._profileSummary(preset), use_markup: false});
-                row.add_prefix(this._preview(preset));
+                const editor = this._layoutEditor(settings, null, window, {preset});
+                const row = editor.row;
                 const remove = new Gtk.Button({icon_name: 'user-trash-symbolic',
                     tooltip_text: 'Delete preset', valign: Gtk.Align.CENTER});
                 remove.connect('clicked', () => {
@@ -227,13 +226,13 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
 
     _layoutEditor(settings, source, window, draft = null) {
         const key = source ? sourceKey(source) : null;
-        const read = () => draft ? normalizeProfile({colors: ['#57E389'], symbol: '🌐'}) :
+        const read = () => draft ? normalizeProfile(draft.preset ?? {colors: ['#57E389'], symbol: '🌐'}) :
             profileFor(source, parseObject(settings.get_string('layout-profiles')), settings.get_strv('fallback-colors'));
         let profile = read();
         let updating = false;
         let choices = [];
         const language = presetFor(source)?.name;
-        const row = new Adw.ExpanderRow({title: draft ? 'New preset' : language ?? source.id, expanded: Boolean(draft), use_markup: false});
+        const row = new Adw.ExpanderRow({title: draft ? draft.preset?.name ?? 'New preset' : language ?? source.id, expanded: Boolean(draft && !draft.preset), use_markup: false});
         const preview = this._preview(profile);
         row.add_prefix(preview);
         const store = () => {
@@ -318,7 +317,9 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             preview.label = profile.symbol || '—';
             updating = false;
         };
+        let refreshNames = () => {};
         const refresh = () => {
+            refreshNames();
             updating = true;
             choices = [...PRESETS, ...userPresets(settings.get_string('user-presets'))];
             presetRow.model = Gtk.StringList.new(['Custom', ...choices.map((p, i) =>
@@ -384,11 +385,11 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
         });
 
         const saveRow = new Adw.ActionRow({title: 'Save as my preset',
-            subtitle: draft ? 'Choose a unique name for your new preset.' :
-                'Saves colors, opacity, Hide, reverse and Unicode symbol. An existing name updates that preset.'});
-        const name = new Gtk.Entry({placeholder_text: 'Preset name', max_length: 80,
+            subtitle: 'An existing name updates your preset. A new name saves a copy. Built-in presets stay unchanged.'});
+        const name = new Gtk.Entry({text: draft?.preset?.name ?? (profile.presetId?.startsWith('user:') ? profile.presetId.slice(5) : ''),
+            placeholder_text: 'Preset name', max_length: 80,
             valign: Gtk.Align.CENTER, width_chars: 18});
-        const save = new Gtk.Button({icon_name: 'document-save-symbolic', sensitive: false,
+        const save = new Gtk.Button({icon_name: 'document-save-symbolic', sensitive: Boolean(name.text.trim()),
             tooltip_text: 'Save preset', valign: Gtk.Align.CENTER});
         name.connect('changed', () => { save.sensitive = name.text.trim().length > 0; });
         const savePreset = () => {
@@ -396,10 +397,6 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             if (!title) return;
             const presets = userPresets(settings.get_string('user-presets'));
             const index = presets.findIndex(p => p.name === title);
-            if (draft && index >= 0) {
-                window.add_toast(new Adw.Toast({title: 'A preset with this name already exists.'}));
-                return;
-            }
             profile.presetId = `user:${title}`;
             const preset = {name: title, ...normalizeProfile(profile)};
             if (index === -1) presets.push(preset);
@@ -407,15 +404,33 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             settings.set_string('user-presets', JSON.stringify(presets));
             store();
             refresh();
-            name.text = '';
+            name.text = title;
             window.add_toast(new Adw.Toast({title: `Preset “${title}” saved`}));
-            draft?.saved();
+            draft?.saved?.();
         };
         save.connect('clicked', savePreset);
         name.connect('activate', savePreset);
         saveRow.add_suffix(name);
         saveRow.add_suffix(save);
+        const names = new Gtk.DropDown({valign: Gtk.Align.CENTER,
+            tooltip_text: 'Choose a saved preset name'});
+        refreshNames = () => {
+            const current = userPresets(settings.get_string('user-presets'));
+            names.model = Gtk.StringList.new(['Choose saved name', ...current.map(p => p.name)]);
+            names.selected = 0;
+            names.sensitive = current.length > 0;
+        };
+        names.connect('notify::selected', () => {
+            if (names.selected > 0 && names.selected < names.model.get_n_items()) {
+                name.text = names.model.get_string(names.selected);
+                names.selected = 0;
+            }
+        });
+        refreshNames();
+        saveRow.add_suffix(names);
         row.add_row(saveRow);
+        if (draft?.preset)
+            return {row, refresh};
         if (draft) {
             const cancelRow = new Adw.ActionRow({title: 'Discard new preset'});
             const cancel = new Gtk.Button({label: 'Cancel', valign: Gtk.Align.CENTER});
