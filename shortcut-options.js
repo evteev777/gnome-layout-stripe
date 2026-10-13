@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-export const DIRECT_SHORTCUT_KEY = 'layout-stripe-modifier-shortcut';
+export const LEGACY_SHORTCUT_KEY = 'layout-stripe-modifier-shortcut';
 
 export const MODIFIER_SHORTCUTS = [
     {label: 'None', option: null, accelerators: []},
@@ -9,19 +9,18 @@ export const MODIFIER_SHORTCUTS = [
     {label: 'Ctrl+Shift', option: null,
         accelerators: ['<Control>Shift_L', '<Control>Shift_R', '<Shift>Control_L', '<Shift>Control_R']},
     {label: 'Caps Lock', option: 'grp:caps_toggle', accelerators: []},
-    {label: 'Left + right Shift', option: null, direct: true, accelerators: ['<Shift>Shift_L', '<Shift>Shift_R']},
 ];
 
 function canonical(value) {
     return value.replaceAll('<Ctrl>', '<Control>').replaceAll('<Primary>', '<Control>');
 }
 
-export function withoutRetiredCtrl(accelerators) {
-    return accelerators.filter(value => !['<Control>Control_L', '<Control>Control_R'].includes(canonical(value)));
+export function withoutRetiredModifiers(accelerators) {
+    return accelerators.filter(value => !['<Control>Control_L', '<Control>Control_R', '<Shift>Shift_L', '<Shift>Shift_R'].includes(canonical(value)));
 }
 
 export function modifierAccelerators(accelerators) {
-    const managed = new Set([...MODIFIER_SHORTCUTS.flatMap(shortcut => shortcut.accelerators), '<Control>Control_L', '<Control>Control_R']);
+    const managed = new Set([...MODIFIER_SHORTCUTS.flatMap(shortcut => shortcut.accelerators), '<Control>Control_L', '<Control>Control_R', '<Shift>Shift_L', '<Shift>Shift_R']);
     return accelerators.filter(value => managed.has(canonical(value)));
 }
 
@@ -30,13 +29,7 @@ export function primaryAccelerators(accelerators) {
     return accelerators.filter(value => !modifiers.has(value));
 }
 
-export function modifierSelection(options, accelerators = [], direct = []) {
-    if (direct.length) {
-        const index = MODIFIER_SHORTCUTS.findIndex(shortcut => shortcut.direct &&
-            shortcut.accelerators.length === direct.length &&
-            shortcut.accelerators.every(value => direct.map(canonical).includes(value)));
-        return index >= 0 && modifierSelection(options, accelerators) === 0 ? index : -1;
-    }
+export function modifierSelection(options, accelerators = []) {
     const groups = options.filter(option => option.startsWith('grp:'));
     const native = new Set(accelerators.map(canonical));
     const active = MODIFIER_SHORTCUTS.map((shortcut, index) =>
@@ -52,13 +45,12 @@ export function modifierSelection(options, accelerators = [], direct = []) {
 export function withModifierShortcut(options, accelerators, index) {
     const shortcut = MODIFIER_SHORTCUTS[index];
     if (!shortcut)
-        return {options: [...options], accelerators: [...accelerators], direct: []};
+        return {options: [...options], accelerators: [...accelerators]};
     const groups = options.filter(option => !option.startsWith('grp:'));
     if (shortcut.option)
         groups.push(shortcut.option);
     return {options: groups,
-        accelerators: [...primaryAccelerators(accelerators), ...(shortcut.direct ? [] : shortcut.accelerators)],
-        direct: shortcut.direct ? [...shortcut.accelerators] : []};
+        accelerators: [...primaryAccelerators(accelerators), ...shortcut.accelerators]};
 }
 
 export function shortcutConflict(bindings, key, accelerator, normalize) {

@@ -2,9 +2,7 @@
 
 import St from 'gi://St';
 import Gio from 'gi://Gio';
-import Meta from 'gi://Meta';
-import Shell from 'gi://Shell';
-import {DIRECT_SHORTCUT_KEY, withoutRetiredCtrl} from './shortcut-options.js';
+import {LEGACY_SHORTCUT_KEY} from './shortcut-options.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Keyboard from 'resource:///org/gnome/shell/ui/status/keyboard.js';
@@ -25,17 +23,8 @@ export default class LayoutStripe extends Extension {
             const inputSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.input-sources'});
             migrateSettings(this._settings, inputSettings.get_value('sources').deep_unpack());
             this._manager = Keyboard.getInputSourceManager();
-            const direct = this._settings.get_strv(DIRECT_SHORTCUT_KEY);
-            const retained = withoutRetiredCtrl(direct);
-            if (retained.length !== direct.length)
-                this._settings.set_strv(DIRECT_SHORTCUT_KEY, retained);
-            const action = Main.wm.addKeybinding(DIRECT_SHORTCUT_KEY, this._settings,
-                Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
-                Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW | Shell.ActionMode.POPUP,
-                () => this._switchLayout());
-            this._hasModifierBinding = action !== Meta.KeyBindingAction.NONE;
-            if (!this._hasModifierBinding)
-                throw new Error('Layout Stripe: could not register the additional layout shortcut.');
+            if (this._settings.get_strv(LEGACY_SHORTCUT_KEY).length)
+                this._settings.set_strv(LEGACY_SHORTCUT_KEY, []);
             this._indicator = new LayoutIndicator(this._manager, this._settings, () => this.openPreferences());
             this._symbol = this._indicator.symbol;
             this._indicator.attach(this.uuid);
@@ -53,7 +42,7 @@ export default class LayoutStripe extends Extension {
                 this._rebuild();
             });
             this._watch(this._settings, 'changed', (_settings, key) => {
-                if (![DIRECT_SHORTCUT_KEY, 'user-presets', 'profile-format-version', 'layout-colors', 'opacity', 'reverse'].includes(key))
+                if (![LEGACY_SHORTCUT_KEY, 'user-presets', 'profile-format-version', 'layout-colors', 'opacity', 'reverse'].includes(key))
                     this._rebuild();
             });
             this._watch(Main.layoutManager, 'monitors-changed', () => this._rebuild());
@@ -64,16 +53,6 @@ export default class LayoutStripe extends Extension {
             this.disable();
             throw error;
         }
-    }
-
-    _switchLayout() {
-        if (Main.sessionMode.isLocked || Main.sessionMode.isGreeter)
-            return;
-        const sources = Object.values(this._manager.inputSources).sort((a, b) => a.index - b.index);
-        if (sources.length < 2)
-            return;
-        const index = sources.indexOf(this._manager.currentSource);
-        sources[(index + 1) % sources.length].activate(true);
     }
 
     _watch(object, signal, callback) {
@@ -140,14 +119,6 @@ export default class LayoutStripe extends Extension {
     }
 
     disable() {
-        if (this._hasModifierBinding) {
-            this._hasModifierBinding = false;
-            try {
-                Main.wm.removeKeybinding(DIRECT_SHORTCUT_KEY);
-            } catch (error) {
-                console.error(`Layout Stripe: could not remove shortcut: ${error}`);
-            }
-        }
         const signals = this._signals ?? [];
         this._signals = [];
         for (const [object, id] of signals) {

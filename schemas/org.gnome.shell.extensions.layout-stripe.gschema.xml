@@ -4,7 +4,7 @@
   <schema id="org.gnome.shell.extensions.layout-stripe" path="/org/gnome/shell/extensions/layout-stripe/">
     <key name="layout-stripe-modifier-shortcut" type="as">
       <default>[]</default>
-      <summary>Extension-owned modifier shortcut accelerators</summary>
+      <summary>Legacy experimental shortcuts (cleanup only)</summary>
     </key>
     <key name="edge" type="s">
       <choices>
@@ -55,7 +55,7 @@
       <summary>Show the Unicode symbol in the top panel</summary>
     </key>
     <key name="show-system-label" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Show the system input source indicator</summary>
     </key>
     <key name="user-presets" type="s">

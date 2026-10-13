@@ -4,7 +4,7 @@ import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk?version=4.0';
-import {DIRECT_SHORTCUT_KEY, MODIFIER_SHORTCUTS, withoutRetiredCtrl, modifierSelection, withModifierShortcut, shortcutConflict} from './shortcut-options.js';
+import {LEGACY_SHORTCUT_KEY, MODIFIER_SHORTCUTS, withoutRetiredModifiers, modifierSelection, withModifierShortcut, shortcutConflict} from './shortcut-options.js';
 
 function normalizeAccelerator(value) {
     const [valid, key, modifiers] = Gtk.accelerator_parse(value);
@@ -14,33 +14,30 @@ function normalizeAccelerator(value) {
 export function addShortcutPreferences(page, window, settings) {
     const bindings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.keybindings'});
     const inputs = new Gio.Settings({schema_id: 'org.gnome.desktop.input-sources'});
-    for (const [object, key] of [[settings, DIRECT_SHORTCUT_KEY], [bindings, 'switch-input-source']]) {
-        const current = object.get_strv(key);
-        const retained = withoutRetiredCtrl(current);
-        if (current.length !== retained.length)
-            object.set_strv(key, retained);
-    }
+    if (settings.get_strv(LEGACY_SHORTCUT_KEY).length)
+        settings.set_strv(LEGACY_SHORTCUT_KEY, []);
+    const current = bindings.get_strv('switch-input-source');
+    const retained = withoutRetiredModifiers(current);
+    if (current.length !== retained.length)
+        bindings.set_strv('switch-input-source', retained);
     const group = new Adw.PreferencesGroup({title: 'Keyboard shortcuts',
-        description: 'Standard next/previous shortcuts stay in GNOME Keyboard Settings. Left + right Shift require Layout Stripe to be enabled.'});
+        description: 'Standard next/previous shortcuts stay in GNOME Keyboard Settings. This switch remains active when Layout Stripe is disabled.'});
     page.add(group);
     const signals = [];
     const modifiers = new Adw.ComboRow({title: 'Additional layout shortcut',
         subtitle: 'Additional switch. None disables it without removing your main shortcuts.',
         model: Gtk.StringList.new(MODIFIER_SHORTCUTS.map(shortcut => shortcut.label)),
-        sensitive: inputs.is_writable('xkb-options') && bindings.is_writable('switch-input-source') && settings.is_writable(DIRECT_SHORTCUT_KEY)});
+        sensitive: inputs.is_writable('xkb-options') && bindings.is_writable('switch-input-source')});
     let updating = false;
     const refresh = () => {
         if (updating)
             return;
         updating = true;
-        const selected = modifierSelection(inputs.get_strv('xkb-options'), bindings.get_strv('switch-input-source'),
-            settings.get_strv(DIRECT_SHORTCUT_KEY));
+        const selected = modifierSelection(inputs.get_strv('xkb-options'), bindings.get_strv('switch-input-source'));
         modifiers.selected = selected < 0 ? Gtk.INVALID_LIST_POSITION : selected;
         modifiers.subtitle = selected < 0
             ? 'Existing system configuration is unchanged. Choose an option to replace it.'
-            : MODIFIER_SHORTCUTS[selected]?.direct
-                ? 'Hold one key and press the other. Requires Layout Stripe to be enabled.'
-                : 'Additional switch. None keeps your standard layout shortcuts.';
+            : 'Additional switch. None keeps your standard layout shortcuts.';
         updating = false;
     };
     refresh();
@@ -60,23 +57,17 @@ export function addShortcutPreferences(page, window, settings) {
             refresh();
             return;
         }
-        // Keep only one switching mechanism active and restore all settings on failure.
+        // Remove the XKB switch before enabling the GNOME binding to avoid double switching.
         updating = true;
-        const writes = [
-            [settings, DIRECT_SHORTCUT_KEY, []],
-            [inputs, 'xkb-options', plan.options],
-            [bindings, 'switch-input-source', plan.accelerators],
-            [settings, DIRECT_SHORTCUT_KEY, plan.direct],
-        ];
-        const previous = writes.slice(0, 3).map(([object, key]) => [object, key, object.get_strv(key)]);
+        const previous = inputs.get_strv('xkb-options');
         try {
-            for (const [object, key, value] of writes) {
-                if (!object.set_strv(key, value))
-                    throw new Error('Input source shortcuts are not writable.');
+            if (!inputs.set_strv('xkb-options', plan.options))
+                throw new Error('Keyboard options are not writable.');
+            if (!bindings.set_strv('switch-input-source', plan.accelerators)) {
+                inputs.set_strv('xkb-options', previous);
+                throw new Error('Input source shortcuts are not writable.');
             }
         } catch (error) {
-            for (const [object, key, value] of previous.reverse())
-                object.set_strv(key, value);
             window.add_toast(new Adw.Toast({title: error.message}));
         } finally {
             updating = false;
@@ -86,7 +77,6 @@ export function addShortcutPreferences(page, window, settings) {
     modifiers.connect('notify::selected', applySelection);
     signals.push([inputs, inputs.connect('changed::xkb-options', refresh)]);
     signals.push([bindings, bindings.connect('changed::switch-input-source', refresh)]);
-    signals.push([settings, settings.connect(`changed::${DIRECT_SHORTCUT_KEY}`, refresh)]);
     group.add(modifiers);
     return () => {
         for (const [object, id] of signals)

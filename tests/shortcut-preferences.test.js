@@ -46,7 +46,7 @@ function create(inputOptions = ['compose:ralt', 'grp:alt_shift_toggle'], acceler
     const bindings = new Settings({'switch-input-source': accelerators,
         'switch-input-source-backward': ['<Super><Shift>space'], close: ['<Alt>F4']});
     const inputs = new Settings({'xkb-options': inputOptions});
-    const settings = new Settings({[options.DIRECT_SHORTCUT_KEY]: []});
+    const settings = new Settings({[options.LEGACY_SHORTCUT_KEY]: []});
     const Gtk = {
         StringList: {new: list => list}, INVALID_LIST_POSITION: 4294967295,
         accelerator_parse(value) {
@@ -150,32 +150,8 @@ test('preferences expose only the additional combinations, without a selectable 
 });
 
 
-test('left/right choices use the extension binding, restore on reopen, and None clears it', () => {
-    const {page, bindings, inputs, settings, cleanup} = create([], ['<Super>space', ...options.MODIFIER_SHORTCUTS[4].accelerators]);
-    const row = page.children[0].children[0];
-    row.selected = 4;
-    row.emit('notify::selected');
-    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
-    assert.deepEqual(settings.values[options.DIRECT_SHORTCUT_KEY], options.MODIFIER_SHORTCUTS[4].accelerators);
-    assert.equal(row.selected, 4);
-    bindings.failWrites.add('switch-input-source');
-    row.selected = 3;
-    row.emit('notify::selected');
-    assert.equal(row.selected, 4);
-    assert.deepEqual(inputs.values['xkb-options'], []);
-    assert.deepEqual(settings.values[options.DIRECT_SHORTCUT_KEY], options.MODIFIER_SHORTCUTS[4].accelerators);
-    bindings.failWrites.clear();
-    row.selected = 0;
-    row.emit('notify::selected');
-    assert.deepEqual(settings.values[options.DIRECT_SHORTCUT_KEY], []);
-    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
-    cleanup();
-    assert.equal(settings.handlers.size, 0);
-});
-
-
 test('opening preferences retires old Ctrl bindings while preserving normal input-source shortcuts', () => {
-    const {bindings, page, cleanup} = create([], ['<Super>space', '<Control>Control_L', '<Control>Control_R']);
+    const {bindings, page, cleanup} = create([], ['<Super>space', '<Control>Control_L', '<Control>Control_R', '<Shift>Shift_L', '<Shift>Shift_R']);
     assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
     assert.equal(page.children[0].children[0].selected, 0);
     cleanup();
