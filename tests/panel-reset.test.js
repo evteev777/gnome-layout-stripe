@@ -37,7 +37,7 @@ test('system indicator hiding resists Shell visibility changes and restores on d
 });
 
 test('reset restores standard profiles and display choices without deleting user presets', () => {
-    const defaults = {edge: 'bottom', thickness: 3, 'all-monitors': true, 'show-fullscreen': false,
+    const defaults = {edge: 'bottom', thickness: 6, 'all-monitors': true, 'show-fullscreen': false,
         'fallback-colors': [DEFAULT_GREEN], 'show-panel-symbol': true, 'show-system-label': false,
         'layout-profiles': '{}', 'layout-colors': '{}', opacity: 100, reverse: false};
     const values = {...defaults, edge: 'right', thickness: 88, 'all-monitors': true,
@@ -49,7 +49,7 @@ test('reset restores standard profiles and display choices without deleting user
     const custom = values['user-presets'];
     resetSettings({reset: k => {values[k] = defaults[k];}, set_int: (k, v) => {values[k] = v;}});
     assert.equal(values['user-presets'], custom);
-    assert.equal(values.thickness, 3);
+    assert.equal(values.thickness, 6);
     assert.equal(values.edge, 'bottom');
     assert.equal(values['show-panel-symbol'], true);
     assert.equal(values['show-system-label'], false);
@@ -64,10 +64,10 @@ test('reset restores standard profiles and display choices without deleting user
     assert.equal(russian.symbol, '🇷🇺');
 });
 
-test('schema has the exact screenshot green, 3px and both independent panel controls', () => {
+test('schema has the exact screenshot green, 6px and both independent panel controls', () => {
     const xml = fs.readFileSync(new URL('../schemas/org.gnome.shell.extensions.layout-stripe.gschema.xml', import.meta.url), 'utf8');
     assert.match(xml, /name="fallback-colors"[\s\S]*?#57E389/);
-    assert.match(xml, /name="thickness"[\s\S]*?<default>3<\/default>/);
+    assert.match(xml, /name="thickness"[\s\S]*?<default>6<\/default>/);
     assert.match(xml, /name="show-panel-symbol"/);
     assert.match(xml, /name="show-system-label"[\s\S]*?<default>false<\/default>/);
     assert.match(xml, /name="all-monitors"[\s\S]*?<default>true<\/default>/);

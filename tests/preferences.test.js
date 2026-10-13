@@ -78,5 +78,5 @@ test('metadata permits supported releases while retaining settings identity', ()
     assert.deepEqual(metadata['shell-version'], Array.from({length: 5}, (_, i) => String(46 + i)));
     assert.equal(metadata.uuid, 'layout-stripe@evteev.ru');
     assert.equal(metadata['settings-schema'], 'org.gnome.shell.extensions.layout-stripe');
-    assert.equal(metadata['version-name'], '1.5');
+    assert.equal(metadata['version-name'], '1.6');
 });

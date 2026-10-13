@@ -14,7 +14,7 @@
     </key>
     <key name="thickness" type="i">
       <range min="1" max="100" />
-      <default>3</default>
+      <default>6</default>
       <summary>Stripe thickness in logical pixels</summary>
     </key>
     <key name="reverse" type="b">

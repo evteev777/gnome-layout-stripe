@@ -18,6 +18,8 @@
   visibility guard is released even if a property assignment fails.
 - Removed a synthetic test that demonstrated obsolete code rather than testing
   the extension; retained actual partial-attachment regression coverage.
+- Added the native GTK emoji chooser beside the Unicode entry and set the
+  default stripe thickness to 6 logical pixels. Saved thickness values are retained.
 - Added ESLint, a dependency lockfile, automated checks and reproducible packaging.
 
 ## Runtime design

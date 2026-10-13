@@ -24,7 +24,7 @@ class Widget {
         }});
     }
     connect(signal, fn) {this.handlers.set(signal, fn); return signal;}
-    emit(signal) {this.handlers.get(signal)?.();}
+    emit(signal, ...args) {this.handlers.get(signal)?.(this, ...args);}
     add_row(child) {this.rows.push(child);}
     add_suffix(child) {this.suffixes.push(child);}
     add_prefix(child) {this.prefixes.push(child);}
@@ -38,6 +38,7 @@ class Widget {
         if (this.value !== value) {this.value = value; this.emit('value-changed');}
     }
     get_value() {return this.value;}
+    popdown() {this.poppedDown = true;}
     set_draw_func(fn) {this.draw = fn;}
     queue_draw() {}
 }
@@ -52,7 +53,8 @@ function create() {
         Adw: {ActionRow: Widget, ExpanderRow: Widget, ComboRow: Widget, Toast: Widget},
         Gtk: {Align: {CENTER: 3}, Orientation: {HORIZONTAL: 0}, StringList: {new: items => [...items]},
             DrawingArea: Widget, ColorButton: Widget, Box: Widget, Label: Widget, CheckButton: Widget,
-            Switch: Widget, Entry: Widget, Button: Widget, Scale: {new_with_range: () => new Widget()}},
+            Switch: Widget, Entry: Widget, Button: Widget, MenuButton: Widget, EmojiChooser: Widget,
+            Scale: {new_with_range: () => new Widget()}},
         Gdk: {RGBA}, Gio: {}, ExtensionPreferences: class {}, ...common,
     });
     const values = {'layout-profiles': '{}', 'user-presets': '[]', 'fallback-colors': ['#808080']};
@@ -119,7 +121,7 @@ test('Unicode previews follow edits, are saved in presets and restore standard s
     const {prefs, settings, values, window} = create();
     const editor = prefs._layoutEditor(settings, {type: 'xkb', id: 'ru'}, window);
     assert.equal(editor.row.prefixes[0].label, '🇷🇺');
-    const [entry, reset] = row(editor, 'Unicode symbol').suffixes;
+    const [entry, , reset] = row(editor, 'Unicode symbol').suffixes;
     entry.text = '🦊';
     assert.equal(editor.row.prefixes[0].label, '🦊');
     assert.equal(JSON.parse(values['layout-profiles'])['xkb:ru'].symbol, '🦊');
@@ -153,5 +155,26 @@ test('typing a multi-word Unicode label keeps the entry text intact', () => {
         assert.equal(entry.text, text);
         assert.equal(editor.row.prefixes[0].label, text);
         assert.equal(JSON.parse(values['layout-profiles'])['xkb:ru'].symbol, text);
+    }
+});
+
+test('emoji picker replaces the symbol, persists it and closes without changing colors', () => {
+    const {prefs, settings, values, window} = create();
+    const source = {type: 'xkb', id: 'us'};
+    const editor = prefs._layoutEditor(settings, source, window);
+    const [entry, button] = row(editor, 'Unicode symbol').suffixes;
+    assert.equal(button.tooltip_text, 'Choose emoji');
+    entry.text = 'Old text';
+    for (const emoji of ['🦊', '🇬🇧', '👩‍💻']) {
+        button.popover.emit('emoji-picked', emoji);
+        assert.equal(entry.text, emoji);
+        assert.equal(editor.row.prefixes[0].label, emoji);
+        const profile = JSON.parse(values['layout-profiles'])['xkb:us'];
+        assert.equal(profile.symbol, emoji);
+        assert.deepEqual(profile.colors, ['#57E389']);
+        assert.equal(profile.hidden, true);
+        assert.equal(button.popover.poppedDown, true);
+        const reopened = prefs._layoutEditor(settings, source, window);
+        assert.equal(row(reopened, 'Unicode symbol').suffixes[0].text, emoji);
     }
 });

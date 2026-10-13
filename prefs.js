@@ -242,9 +242,17 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             subtitle: 'Flag, emoji or text for the preview and top panel. Leave empty to hide the symbol.'});
         const symbol = new Gtk.Entry({text: profile.symbol, max_length: 32,
             width_chars: 8, valign: Gtk.Align.CENTER});
+        const emojiChooser = new Gtk.EmojiChooser();
+        const chooseEmoji = new Gtk.MenuButton({icon_name: 'face-smile-symbolic',
+            tooltip_text: 'Choose emoji', valign: Gtk.Align.CENTER, popover: emojiChooser});
+        emojiChooser.connect('emoji-picked', (_chooser, emoji) => {
+            symbol.text = emoji;
+            emojiChooser.popdown();
+        });
         const resetSymbol = new Gtk.Button({icon_name: 'edit-undo-symbolic',
             tooltip_text: 'Restore standard layout symbol', valign: Gtk.Align.CENTER});
         symbolRow.add_suffix(symbol);
+        symbolRow.add_suffix(chooseEmoji);
         symbolRow.add_suffix(resetSymbol);
         row.add_row(symbolRow);
 

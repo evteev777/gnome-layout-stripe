@@ -13,7 +13,7 @@ The stripe passes clicks through and does not reserve workspace space.
 | Setting | Default |
 | --- | --- |
 | Screen edge | Bottom |
-| Thickness | 3 logical pixels |
+| Thickness | 6 logical pixels |
 | All monitors | On |
 | Show over fullscreen windows | Off |
 | Unicode symbol in the top panel | On |
@@ -31,7 +31,9 @@ Flag colors are cues, not complete flag artwork. Each stripe contains 1–3 equa
 segments. Colors run left to right on horizontal edges and top to bottom on side
 edges; Reverse changes their order. The Unicode symbol is independent of the
 stripe colors and remains visible when the stripe is hidden. Its appearance
-depends on the installed fonts.
+depends on the installed fonts. Use the smiley button beside **Unicode symbol**
+to open GTK's built-in emoji chooser with categories and search. Picking an emoji
+replaces the current symbol; manual text entry remains available.
 
 **Hide** remembers the previous opacity and restores it when unchecked.
 **My presets** saves complete configurations. Applying a preset copies its
