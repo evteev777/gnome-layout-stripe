@@ -4,7 +4,8 @@ import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk?version=4.0';
-import {MODIFIER_SHORTCUTS, modifierSelection, withModifierShortcut, shortcutConflict} from './shortcut-options.js';
+import {MODIFIER_SHORTCUTS, modifierSelection, withModifierShortcut, shortcutConflict,
+    primaryAccelerators, withPrimaryShortcut} from './shortcut-options.js';
 
 function acceleratorLabel(value) {
     const [valid, key, modifiers] = Gtk.accelerator_parse(value);
@@ -80,7 +81,10 @@ function editShortcut(parent, settings, key, title) {
         if (!apply.sensitive)
             return;
         // System settings, not an extension-owned keybinding: no duplicate grabs.
-        if (settings.set_strv(key, accelerator ? [accelerator] : []))
+        const primary = accelerator ? [accelerator] : [];
+        const values = key === 'switch-input-source'
+            ? withPrimaryShortcut(settings.get_strv(key), primary) : primary;
+        if (settings.set_strv(key, values))
             dialog.close();
         else
             message.label = 'This shortcut is not writable.';
@@ -105,32 +109,74 @@ export function addShortcutPreferences(page, window) {
         const reset = new Gtk.Button({icon_name: 'edit-undo-symbolic', valign: Gtk.Align.CENTER,
             tooltip_text: 'Restore system default', sensitive: bindings.is_writable(key)});
         const refresh = () => {
-            edit.label = bindings.get_strv(key).map(acceleratorLabel).join(' / ') || 'Disabled';
+            const values = bindings.get_strv(key);
+            const primary = key === 'switch-input-source' ? primaryAccelerators(values) : values;
+            edit.label = primary.map(acceleratorLabel).join(' / ') || 'Disabled';
+            edit.tooltip_text = values.map(acceleratorLabel).join(' / ') || 'Disabled';
         };
         refresh();
         edit.connect('clicked', () => editShortcut(window, bindings, key, title));
-        reset.connect('clicked', () => bindings.reset(key));
+        reset.connect('clicked', () => {
+            if (key === 'switch-input-source') {
+                const defaults = bindings.get_default_value(key).deep_unpack();
+                bindings.set_strv(key, withPrimaryShortcut(bindings.get_strv(key), defaults));
+            } else {
+                bindings.reset(key);
+            }
+        });
         signals.push([bindings, bindings.connect(`changed::${key}`, refresh)]);
         row.add_suffix(edit);
         row.add_suffix(reset);
         group.add(row);
     }
     const modifiers = new Adw.ComboRow({title: 'Modifier-only shortcut',
-        subtitle: 'Additional XKB switch. Applies to keyboard layouts, not IBus input methods.',
+        subtitle: 'Additional switch. None disables it without removing your main shortcuts.',
         model: Gtk.StringList.new([...MODIFIER_SHORTCUTS.map(shortcut => shortcut.label), 'Custom (system)']),
-        sensitive: inputs.is_writable('xkb-options')});
+        sensitive: inputs.is_writable('xkb-options') && bindings.is_writable('switch-input-source')});
     let updating = false;
     const refresh = () => {
+        if (updating)
+            return;
         updating = true;
-        modifiers.selected = modifierSelection(inputs.get_strv('xkb-options'));
+        modifiers.selected = modifierSelection(inputs.get_strv('xkb-options'), bindings.get_strv('switch-input-source'));
         updating = false;
     };
     refresh();
     modifiers.connect('notify::selected', () => {
-        if (!updating && modifiers.selected < MODIFIER_SHORTCUTS.length)
-            inputs.set_strv('xkb-options', withModifierShortcut(inputs.get_strv('xkb-options'), modifiers.selected));
+        if (updating || modifiers.selected >= MODIFIER_SHORTCUTS.length)
+            return;
+        const index = modifiers.selected;
+        const plan = withModifierShortcut(inputs.get_strv('xkb-options'),
+            bindings.get_strv('switch-input-source'), index);
+        const existing = Object.fromEntries(bindings.settings_schema.list_keys()
+            .map(name => [name, bindings.get_strv(name)]));
+        const conflict = MODIFIER_SHORTCUTS[index].accelerators
+            .map(value => shortcutConflict(existing, 'switch-input-source', value, normalizeAccelerator))
+            .find(Boolean);
+        if (conflict) {
+            window.add_toast(new Adw.Toast({title: `Shortcut conflicts with “${conflict.replaceAll('-', ' ')}”.`}));
+            refresh();
+            return;
+        }
+        // Remove the XKB switch before enabling the GNOME binding to avoid double switching.
+        updating = true;
+        const previous = inputs.get_strv('xkb-options');
+        try {
+            if (!inputs.set_strv('xkb-options', plan.options))
+                throw new Error('Keyboard options are not writable.');
+            if (!bindings.set_strv('switch-input-source', plan.accelerators)) {
+                inputs.set_strv('xkb-options', previous);
+                throw new Error('Input source shortcuts are not writable.');
+            }
+        } catch (error) {
+            window.add_toast(new Adw.Toast({title: error.message}));
+        } finally {
+            updating = false;
+            refresh();
+        }
     });
     signals.push([inputs, inputs.connect('changed::xkb-options', refresh)]);
+    signals.push([bindings, bindings.connect('changed::switch-input-source', refresh)]);
     group.add(modifiers);
     return () => {
         for (const [object, id] of signals)

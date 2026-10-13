@@ -9,6 +9,7 @@ class Widget {
     children = [];
     suffixes = [];
     controllers = [];
+    toasts = [];
     constructor(props = {}) {Object.assign(this, props);}
     connect(signal, callback) {this.handlers.set(signal, callback); return signal;}
     disconnect(signal) {this.handlers.delete(signal);}
@@ -20,11 +21,13 @@ class Widget {
     set_child(child) {this.child = child;}
     insert_child_after(child, sibling) {this.children.splice(this.children.indexOf(sibling) + 1, 0, child);}
     add_controller(controller) {this.controllers.push(controller);}
+    add_toast(toast) {this.toasts.push(toast);}
     present() {this.presented = true;}
     close() {this.closed = true;}
 }
 class Settings extends Widget {
     writes = [];
+    failWrites = new Set();
     constructor(values) {
         super();
         this.values = JSON.parse(JSON.stringify(values));
@@ -34,18 +37,29 @@ class Settings extends Widget {
     get_strv(key) {return this.values[key];}
     is_writable() {return true;}
     set_strv(key, value) {
+        if (this.failWrites.has(key)) return false;
         this.values[key] = [...value];
         this.writes.push(key);
         this.emit(`changed::${key}`);
         return true;
     }
+    get_default_value(key) {return {deep_unpack: () => [...this.defaults[key]]};}
     reset(key) {this.set_strv(key, this.defaults[key]);}
+    connect(signal, callback) {
+        const id = Symbol(signal);
+        this.handlers.set(id, {signal, callback});
+        return id;
+    }
+    emit(signal, ...args) {
+        for (const handler of this.handlers.values())
+            if (handler.signal === signal) handler.callback(this, ...args);
+    }
 }
-function create() {
+function create(inputOptions = ['compose:ralt', 'grp:alt_shift_toggle'], accelerators = ['<Super>space']) {
     const dialogs = [];
-    const bindings = new Settings({'switch-input-source': ['<Super>space'],
+    const bindings = new Settings({'switch-input-source': accelerators,
         'switch-input-source-backward': ['<Super><Shift>space'], close: ['<Alt>F4']});
-    const inputs = new Settings({'xkb-options': ['compose:ralt', 'grp:alt_shift_toggle']});
+    const inputs = new Settings({'xkb-options': inputOptions});
     const Gtk = {
         Align: {END: 1, CENTER: 2}, Orientation: {VERTICAL: 1}, PropagationPhase: {CAPTURE: 1},
         Box: Widget, Label: Widget, Button: Widget, DropDown: Widget, EventControllerKey: Widget,
@@ -56,9 +70,11 @@ function create() {
                 const [mods, key] = value.split(':').map(Number);
                 return [true, key, mods];
             }
-            const key = value.includes('F4') ? 1003 : 32;
-            const mods = (value.includes('Shift') ? 1 : 0) | (value.includes('Control') ? 4 : 0) |
-                (value.includes('Alt') ? 8 : 0) | (value.includes('Super') ? 64 : 0);
+            const symbols = {space: 32, F4: 1003, Shift_L: 2000, Shift_R: 2001,
+                Alt_L: 2002, Alt_R: 2003, Control_L: 2004, Control_R: 2005};
+            const key = symbols[value.replace(/<[^>]+>/g, '')] ?? 0;
+            const mods = (value.includes('<Shift>') ? 1 : 0) | (value.includes('<Control>') ? 4 : 0) |
+                (value.includes('<Alt>') ? 8 : 0) | (value.includes('<Super>') ? 64 : 0);
             return [true, key, mods];
         },
         accelerator_get_label: (key, mods) => `${mods}:${key}`,
@@ -68,16 +84,17 @@ function create() {
     };
     const Gdk = {keyval_to_lower: key => key, KEY_Escape: 27, KEY_BackSpace: 8, KEY_F1: 1000, KEY_F35: 1034};
     const code = fs.readFileSync(new URL('../shortcut-preferences.js', import.meta.url), 'utf8')
-        .replace(/^import .*;\n/gm, '').replace('export function addShortcutPreferences', 'function addShortcutPreferences');
+        .replace(/^import [\s\S]*?;\n/gm, '').replace('export function addShortcutPreferences', 'function addShortcutPreferences');
     const add = vm.runInNewContext(`${code}\naddShortcutPreferences;`, {
-        Adw: {PreferencesGroup: Widget, ActionRow: Widget, ComboRow: Widget}, Gtk, Gdk, ...options,
+        Adw: {PreferencesGroup: Widget, ActionRow: Widget, ComboRow: Widget, Toast: Widget}, Gtk, Gdk, ...options,
         Gio: {Settings: class {constructor(props) {
             return props.schema_id.endsWith('keybindings') ? bindings : inputs;
         }}},
     });
     const page = new Widget();
-    const cleanup = add(page, new Widget());
-    return {page, bindings, inputs, dialogs, cleanup};
+    const window = new Widget();
+    const cleanup = add(page, window);
+    return {page, bindings, inputs, dialogs, cleanup, window};
 }
 
 test('opening shortcut preferences does not change system settings; edits preserve other options', () => {
@@ -86,14 +103,16 @@ test('opening shortcut preferences does not change system settings; edits preser
     assert.equal(inputs.writes.length, 0);
     const group = page.children[0];
     const modifiers = group.children[2];
-    assert.equal(modifiers.selected, 1);
+    assert.equal(modifiers.selected, 4);
     modifiers.selected = 2;
     modifiers.emit('notify::selected');
-    assert.deepEqual(inputs.values['xkb-options'], ['compose:ralt', 'grp:ctrl_shift_toggle']);
+    assert.deepEqual(inputs.values['xkb-options'], ['compose:ralt']);
+    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space', ...options.MODIFIER_SHORTCUTS[2].accelerators]);
     cleanup();
     assert.equal(inputs.handlers.size, 0);
     assert.equal(bindings.handlers.size, 0);
-    assert.equal(inputs.values['xkb-options'][1], 'grp:ctrl_shift_toggle');
+    assert.deepEqual(inputs.values['xkb-options'], ['compose:ralt']);
+    assert.equal(modifiers.selected, 2);
 });
 
 test('shortcut recorder rejects conflicts, supports disabling and Escape, and allows focus navigation', () => {
@@ -124,5 +143,58 @@ test('shortcut recorder rejects conflicts, supports disabling and Escape, and al
     dialogs[2].controllers[0].emit('key-pressed', 27, 0, 0);
     assert.equal(dialogs[2].closed, true);
     assert.equal(bindings.writes.length, writes);
+    cleanup();
+});
+
+
+test('manual Alt+Shift is recognized and dropdown changes replace it without removing main shortcuts', () => {
+    const {page, bindings, inputs, cleanup} = create([], ['<Super>space', ...options.MODIFIER_SHORTCUTS[1].accelerators]);
+    const group = page.children[0];
+    const modifiers = group.children[2];
+    assert.equal(modifiers.selected, 1);
+    assert.equal(group.children[0].suffixes[0].label, '64:32');
+    modifiers.selected = 2;
+    modifiers.emit('notify::selected');
+    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space', ...options.MODIFIER_SHORTCUTS[2].accelerators]);
+    modifiers.selected = 3;
+    modifiers.emit('notify::selected');
+    assert.deepEqual(inputs.values['xkb-options'], ['grp:caps_toggle']);
+    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
+    modifiers.selected = 0;
+    modifiers.emit('notify::selected');
+    assert.deepEqual(inputs.values['xkb-options'], []);
+    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
+    cleanup();
+});
+
+test('resetting the main shortcut preserves the additional modifier combination', () => {
+    const {page, bindings, cleanup} = create([], ['<Super>space']);
+    const group = page.children[0];
+    bindings.set_strv('switch-input-source', ['<Control>space', ...options.MODIFIER_SHORTCUTS[1].accelerators]);
+    group.children[0].suffixes[1].emit('clicked');
+    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space', ...options.MODIFIER_SHORTCUTS[1].accelerators]);
+    assert.equal(group.children[2].selected, 1);
+    cleanup();
+});
+
+
+test('modifier selection blocks conflicting bindings and rolls back XKB options after a failed write', () => {
+    const {page, bindings, inputs, window, cleanup} = create(['compose:ralt', 'grp:caps_toggle']);
+    const row = page.children[0].children[2];
+    bindings.set_strv('close', ['<Alt>Shift_L']);
+    row.selected = 1;
+    row.emit('notify::selected');
+    assert.equal(row.selected, 3);
+    assert.deepEqual(inputs.values['xkb-options'], ['compose:ralt', 'grp:caps_toggle']);
+    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
+    assert.ok(window.toasts[0].title.includes('conflicts'));
+    bindings.set_strv('close', ['<Alt>F4']);
+    bindings.failWrites.add('switch-input-source');
+    row.selected = 1;
+    row.emit('notify::selected');
+    assert.equal(row.selected, 3);
+    assert.deepEqual(inputs.values['xkb-options'], ['compose:ralt', 'grp:caps_toggle']);
+    assert.deepEqual(bindings.values['switch-input-source'], ['<Super>space']);
+    assert.ok(window.toasts[1].title.includes('not writable'));
     cleanup();
 });

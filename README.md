@@ -1,6 +1,6 @@
 # Layout Stripe
 
-**1.0 Beta 2** — the first public prerelease.
+**1.0 Beta 2** — prerelease with source menus and shortcut controls.
 
 Keyboard layout indicators for GNOME Shell:
 
@@ -65,10 +65,17 @@ conflicts with other `org.gnome.desktop.wm.keybindings` actions and rechecks the
 before applying. Other shortcut providers are not inspected.
 
 **Modifier-only shortcut** offers Alt+Shift, Ctrl+Shift and Caps Lock, or None.
-This is an additional XKB group switch for keyboard layouts, not IBus methods.
-Changing it preserves unrelated XKB options such as Compose settings. An existing
-unrecognized or multiple group-switch configuration is shown as Custom (system)
-and remains unchanged until a supported option is selected.
+Alt+Shift and Ctrl+Shift use GNOME's next-input-source bindings for both key orders
+and left/right modifier keys. Caps Lock uses an XKB group switch for keyboard
+layouts; it does not switch IBus methods. Choosing None removes the additional
+switch while keeping the main shortcuts.
+
+Changing the preset preserves unrelated shortcuts and XKB options such as Compose
+settings. Existing manual Alt+Shift/Ctrl+Shift bindings are recognized. Mixed or
+legacy XKB configurations are shown as Custom (system) and remain unchanged until
+a supported option is selected; Custom is a status label, not a reset action.
+Editing or restoring the main Next input source shortcut preserves the additional
+modifier combination.
 
 These controls edit system settings only after an explicit user action. Shortcuts
 remain active when the extension is disabled or uninstalled. The extension's
@@ -121,8 +128,8 @@ Wayland and GNOME 50 on Wayland. Other desktop environments are not supported.
 Future GNOME releases are deliberately not listed.
 
 **Beta 1 was confirmed by the maintainer:** GNOME Shell 50.1 on Wayland,
-including the emoji chooser. The new beta 2 menus and shortcut editor still need
-real-desktop validation. GNOME 46–49 remain enabled for beta testing and have not yet been
+including the emoji chooser. The maintainer also confirmed the beta 2 menus and a manual GNOME Alt+Shift
+binding. The revised dropdown routing and Ctrl+Shift still need desktop validation. GNOME 46–49 remain enabled for beta testing and have not yet been
 validated on real desktops.
 
 Automated tests use simulated Shell/GTK objects and do not certify desktop

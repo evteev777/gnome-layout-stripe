@@ -69,7 +69,9 @@ Use the runtime ZIP from `npm run build`. Attach representative screenshots and
 review the current [GNOME review guidelines](https://gjs.guide/extensions/review-guidelines/review-guidelines.html).
 The maintainer must understand and be able to explain submitted code, including
 code developed with AI assistance. Catalog review is not a substitute for runtime
-validation. Beta 2 menu and shortcut controls require additional desktop verification.
+validation. Beta 2 menus and the manual native GNOME Alt+Shift binding were confirmed by the
+maintainer. The dropdown now uses that native route for Alt+Shift/Ctrl+Shift; the
+revised dropdown and Ctrl+Shift still require desktop verification.
 
 The beta release workflow publishes a GitHub prerelease after the version is
 merged into master. Catalog submission remains a separate step.

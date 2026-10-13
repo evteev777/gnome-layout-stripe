@@ -9,7 +9,10 @@ indicator's left-click source list from its right-click settings menu.
 - Right-click: Layout Stripe Settings, Show Keyboard Layout and Keyboard Settings.
 - Centered, independently managed popup to avoid neighboring menu hover switches.
 - Next/previous input-source shortcut capture, common choices and WM conflict checks.
-- Alt+Shift, Ctrl+Shift and Caps Lock XKB options without changing unrelated options.
+- Native GNOME Alt+Shift/Ctrl+Shift bindings and an XKB Caps Lock switch,
+  preserving unrelated shortcuts and keyboard options.
+- Recognition of manually configured modifier shortcuts; None removes only the
+  additional switch, and main-shortcut edits retain it.
 
 System shortcut edits persist independently of the extension. Resetting Layout
 Stripe does not reset those shortcuts.
@@ -30,7 +33,8 @@ Stripe does not reset those shortcuts.
 ## Compatibility
 
 Beta 1 was confirmed by the maintainer on **GNOME Shell 50.1 / Wayland**.
-The new beta 2 menus and shortcut editor still need real-desktop testing. GNOME 46–49 are
+The maintainer also confirmed the beta 2 menus and a manual GNOME Alt+Shift
+binding. Revised dropdown routing and Ctrl+Shift still need desktop testing. GNOME 46–49 are
 listed for beta testing but have not yet been validated on real desktops.
 Other desktop environments are not supported. Please report issues with the
 GNOME Shell version, session type and relevant journal messages.
