@@ -1,7 +1,18 @@
-# Layout Stripe 1.0 Beta 1
+# Layout Stripe 1.0 Beta 2
 
-The first public prerelease of Layout Stripe, a keyboard layout indicator for
-GNOME Shell.
+This beta adds system input-source shortcut editing and separates the panel
+indicator's left-click source list from its right-click settings menu.
+
+## New in beta 2
+
+- Left-click: input sources with Unicode symbols, names and an active-source check.
+- Right-click: Layout Stripe Settings, Show Keyboard Layout and Keyboard Settings.
+- Centered, independently managed popup to avoid neighboring menu hover switches.
+- Next/previous input-source shortcut capture, common choices and WM conflict checks.
+- Alt+Shift, Ctrl+Shift and Caps Lock XKB options without changing unrelated options.
+
+System shortcut edits persist independently of the extension. Resetting Layout
+Stripe does not reset those shortcuts.
 
 ## Features
 
@@ -18,7 +29,8 @@ GNOME Shell.
 
 ## Compatibility
 
-Confirmed by the maintainer on **GNOME Shell 50.1 / Wayland**. GNOME 46–49 are
+Beta 1 was confirmed by the maintainer on **GNOME Shell 50.1 / Wayland**.
+The new beta 2 menus and shortcut editor still need real-desktop testing. GNOME 46–49 are
 listed for beta testing but have not yet been validated on real desktops.
 Other desktop environments are not supported. Please report issues with the
 GNOME Shell version, session type and relevant journal messages.

@@ -55,12 +55,12 @@ test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on 
     });
     layoutManager.primaryMonitor = layoutManager.monitors[0];
     const panel = {statusArea: {}, addToStatusArea(uuid, indicator) {this.statusArea[uuid] = indicator;}};
-    const PanelMenu = {Button: class {
-        visible = true;
-        menu = {addAction() {}};
-        add_child() {}
+    const LayoutIndicator = class {
+        symbol = {text: ''};
+        attach(uuid) {panel.addToStatusArea(uuid, this);}
+        refresh() {}
         destroy() {this.destroyed = true;}
-    }};
+    };
     const St = {Label: class {constructor(props) {Object.assign(this, props);}}, Widget: class {
         constructor(props) { Object.assign(this, props); }
         set_position(x, y) { this.x = x; this.y = y; }
@@ -73,7 +73,7 @@ test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on 
     const Class = vm.runInNewContext(`${code}\nLayoutStripe;`, {
         St, Extension: class {getSettings() {return settings;}},
         Main: {layoutManager, sessionMode, uiGroup, panel}, Keyboard: {getInputSourceManager: () => manager},
-        global: {display}, ...common, console, PanelMenu, PanelVisibility, Clutter: {ActorAlign: {CENTER: 0}}, Gio: {Settings: class {
+        global: {display}, ...common, console, LayoutIndicator, PanelVisibility, Gio: {Settings: class {
             get_value() {return {deep_unpack: () => [['xkb', 'ru'], ['xkb', 'us']]};}
         }},
     });

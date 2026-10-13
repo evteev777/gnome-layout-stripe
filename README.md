@@ -1,6 +1,6 @@
 # Layout Stripe
 
-**1.0 Beta 1** — the first public prerelease.
+**1.0 Beta 2** — the first public prerelease.
 
 Keyboard layout indicators for GNOME Shell:
 
@@ -42,6 +42,38 @@ replaces the current symbol; manual text entry remains available.
 settings; subsequent changes to the saved preset do not alter other layouts.
 **Reset** restores defaults and automatic preset selection without deleting
 saved presets or changing the system's input sources.
+
+## Panel menus
+
+Left-click the Unicode indicator to select an input source. Each entry shows its
+configured Unicode symbol and system name; a check marks the active source.
+Right-click for **Layout Stripe Settings**, **Show Keyboard Layout** and
+**Keyboard Settings**. The layout viewer and keyboard settings use GNOME's
+existing system actions, even when its indicator is hidden.
+
+The menu is centered on the indicator and has an independent popup manager, so
+hovering over neighboring panel icons does not replace it. Touch opens the source
+list. When the indicator has keyboard focus, Enter/Space/Down opens the list;
+Menu or Shift+F10 opens settings. Escape and clicking outside close the popup.
+
+## Keyboard shortcuts
+
+The Stripe page edits GNOME's **Next input source** and **Previous input source**
+shortcuts. Choose a common combination or press your own in the capture dialog.
+Escape cancels; Backspace disables the selected action. The editor detects
+conflicts with other `org.gnome.desktop.wm.keybindings` actions and rechecks them
+before applying. Other shortcut providers are not inspected.
+
+**Modifier-only shortcut** offers Alt+Shift, Ctrl+Shift and Caps Lock, or None.
+This is an additional XKB group switch for keyboard layouts, not IBus methods.
+Changing it preserves unrelated XKB options such as Compose settings. An existing
+unrecognized or multiple group-switch configuration is shown as Custom (system)
+and remains unchanged until a supported option is selected.
+
+These controls edit system settings only after an explicit user action. Shortcuts
+remain active when the extension is disabled or uninstalled. The extension's
+Reset does not change them; the individual reset buttons restore GNOME's defaults
+for next/previous shortcuts. No additional Shell keybindings or grabs are installed.
 
 ## Install
 
@@ -88,8 +120,9 @@ Metadata enables GNOME Shell 46–50. The intended baseline is GNOME 46 on X11 o
 Wayland and GNOME 50 on Wayland. Other desktop environments are not supported.
 Future GNOME releases are deliberately not listed.
 
-**Confirmed by the maintainer:** GNOME Shell 50.1 on Wayland, including the
-emoji chooser. GNOME 46–49 remain enabled for beta testing and have not yet been
+**Beta 1 was confirmed by the maintainer:** GNOME Shell 50.1 on Wayland,
+including the emoji chooser. The new beta 2 menus and shortcut editor still need
+real-desktop validation. GNOME 46–49 remain enabled for beta testing and have not yet been
 validated on real desktops.
 
 Automated tests use simulated Shell/GTK objects and do not certify desktop
@@ -122,7 +155,9 @@ the repository. GitHub Actions runs lint, tests, schema validation and packaging
 
 `extension.js` manages Shell actors and signals. `prefs.js` owns the GTK
 preferences. `common.js` contains pure profile, preset, geometry and migration
-logic. `panel-visibility.js` temporarily controls the system indicator without
+logic. `indicator.js` owns the panel menus. `shortcut-preferences.js` edits system
+shortcuts through GTK and GSettings, with pure option helpers in
+`shortcut-options.js`. `panel-visibility.js` temporarily controls the system indicator without
 replacing Shell methods. All objects and signals created at enable time are
 cleaned up at disable time, including partial activation failures.
 

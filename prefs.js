@@ -4,6 +4,7 @@ import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk?version=4.0';
+import {addShortcutPreferences} from './shortcut-preferences.js';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {PRESETS, profileFor, presetFor, normalizeProfile, migrateSettings, matchingPreset,
     toggleHidden, resetSettings, parseObject, sourceKey, userPresets, normalizeSymbol} from './common.js';
@@ -52,6 +53,7 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             'Use the symbol from the active layout preset, even when its stripe is hidden.');
         this._switch(panelGroup, settings, 'show-system-label', 'Show system layout label',
             'Keep GNOME’s standard layout indicator, such as en or ru.');
+        const cleanupShortcuts = addShortcutPreferences(general, window);
         const resetGroup = new Adw.PreferencesGroup({title: 'Defaults'});
         general.add(resetGroup);
         const resetRow = new Adw.ActionRow({title: 'Reset settings to defaults',
@@ -130,6 +132,7 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             })],
         ];
         window.connect('close-request', () => {
+            cleanupShortcuts();
             for (const [object, id] of signals) object.disconnect(id);
             return false;
         });

@@ -2,11 +2,10 @@
 
 import St from 'gi://St';
 import Gio from 'gi://Gio';
-import Clutter from 'gi://Clutter';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Keyboard from 'resource:///org/gnome/shell/ui/status/keyboard.js';
-import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import {LayoutIndicator} from './indicator.js';
 import {PanelVisibility} from './panel-visibility.js';
 import {profileFor, migrateSettings, parseObject, segmentRects} from './common.js';
 
@@ -23,16 +22,17 @@ export default class LayoutStripe extends Extension {
             const inputSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.input-sources'});
             migrateSettings(this._settings, inputSettings.get_value('sources').deep_unpack());
             this._manager = Keyboard.getInputSourceManager();
-            this._indicator = new PanelMenu.Button(0.0, 'Keyboard layout', false);
-            this._symbol = new St.Label({text: '', y_align: Clutter.ActorAlign.CENTER});
-            this._indicator.add_child(this._symbol);
-            this._indicator.menu.addAction('Preferences', () => this.openPreferences());
-            Main.panel.addToStatusArea(this.uuid, this._indicator);
+            this._indicator = new LayoutIndicator(this._manager, this._settings, () => this.openPreferences());
+            this._symbol = this._indicator.symbol;
+            this._indicator.attach(this.uuid);
             const keyboard = Main.panel.statusArea.keyboard;
             if (keyboard?.container)
                 this._systemVisibility = new PanelVisibility(keyboard.container);
             this._watch(this._manager, 'current-source-changed', () => this._rebuild());
-            this._watch(this._manager, 'sources-changed', () => this._rebuild());
+            this._watch(this._manager, 'sources-changed', () => {
+                this._indicator.refresh(true);
+                this._rebuild();
+            });
             this._watch(this._settings, 'changed', (_settings, key) => {
                 if (!['user-presets', 'profile-format-version', 'layout-colors', 'opacity', 'reverse'].includes(key))
                     this._rebuild();
@@ -72,6 +72,7 @@ export default class LayoutStripe extends Extension {
         this._symbol.text = profile.symbol;
         this._indicator.visible = s.get_boolean('show-panel-symbol') && Boolean(profile.symbol);
         this._systemVisibility?.setHidden(!s.get_boolean('show-system-label'));
+        this._indicator.refresh();
         if (profile.hidden || profile.opacity === 0)
             return;
         const colors = [...profile.colors];

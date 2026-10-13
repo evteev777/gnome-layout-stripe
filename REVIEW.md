@@ -38,7 +38,7 @@ GTK/libadwaita versions used by different distributions.
 
 ## Desktop verification
 
-The maintainer reported successful testing on GNOME Shell 50.1 / Wayland,
+For beta 1, the maintainer reported successful testing on GNOME Shell 50.1 / Wayland,
 including the native emoji chooser. This is confirmation on one system; the
 individual matrix below still needs results for other supported releases.
 
@@ -58,6 +58,10 @@ it to extensions.gnome.org. Remove versions that cannot be tested or supported.
 - [ ] Lock/unlock, Overview and suspend/resume.
 - [ ] Reset, per-layout restore and saving/removing custom presets.
 - [ ] Preferences typing, focus and Unicode rendering on the target desktop.
+- [ ] Left/right click menus, neighboring icons, keyboard navigation and source activation.
+- [ ] System layout viewer and keyboard settings while the system indicator is hidden.
+- [ ] Next/previous shortcuts, modifier-only switches, conflicts and cancellation.
+- [ ] System shortcuts persist after extension disable and remain intact after Reset.
 
 ## Catalog submission
 
@@ -65,5 +69,7 @@ Use the runtime ZIP from `npm run build`. Attach representative screenshots and
 review the current [GNOME review guidelines](https://gjs.guide/extensions/review-guidelines/review-guidelines.html).
 The maintainer must understand and be able to explain submitted code, including
 code developed with AI assistance. Catalog review is not a substitute for runtime
-validation. The beta release workflow publishes a GitHub prerelease after the version is
+validation. Beta 2 menu and shortcut controls require additional desktop verification.
+
+The beta release workflow publishes a GitHub prerelease after the version is
 merged into master. Catalog submission remains a separate step.
