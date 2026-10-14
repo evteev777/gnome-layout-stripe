@@ -15,7 +15,8 @@ The stripe passes clicks through and does not reserve workspace space.
 | Setting | Default |
 | --- | --- |
 | Screen edge | Bottom |
-| Thickness | 6 logical pixels |
+| Thickness | 6 logical pixels, including the outline |
+| Outline | 1 logical pixel, with contrasting colors for each segment |
 | All monitors | On |
 | Show over fullscreen windows | Off |
 | Unicode symbol in the top panel | On |
@@ -36,6 +37,16 @@ stripe colors and remains visible when the stripe is hidden. Its appearance
 depends on the installed fonts. Use the smiley button beside **Unicode symbol**
 to open GTK's built-in emoji chooser with categories and search. Picking an emoji
 replaces the current symbol; manual text entry remains available.
+
+A thin **outline** separates the stripe from the window content on the inward-facing
+edge. Built-in presets include fixed black/white outline colors and a 1-pixel width.
+Custom presets use automatic contrast colors, selectable per segment in both layout
+and saved-preset editors. Choosing a segment color resets its outline to automatic;
+afterwards the outline color can be edited, or restored with **Use automatic contrast
+color**. **Outline thickness** accepts 0–20 logical pixels; 0 disables it. It fits
+inside the stripe and is capped to keep at least one pixel of the main color.
+Reverse keeps each outline paired with its segment. Existing saved presets acquire
+an automatic 1-pixel outline unless they already contain outline settings.
 
 **Hide** remembers the previous opacity and restores it when unchecked.
 **My presets** saves complete configurations. **New preset** opens a temporary

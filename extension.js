@@ -8,7 +8,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Keyboard from 'resource:///org/gnome/shell/ui/status/keyboard.js';
 import {LayoutIndicator} from './indicator.js';
 import {PanelVisibility} from './panel-visibility.js';
-import {profileFor, migrateSettings, parseObject, segmentRects} from './common.js';
+import {profileFor, migrateSettings, parseObject, segmentRects, stripeSegments, segmentStyle} from './common.js';
 
 export default class LayoutStripe extends Extension {
     enable() {
@@ -83,18 +83,17 @@ export default class LayoutStripe extends Extension {
         this._indicator.refresh();
         if (profile.hidden || profile.opacity === 0)
             return;
-        const colors = [...profile.colors];
-        if (profile.reverse)
-            colors.reverse();
+        const segments = stripeSegments(profile);
         const monitors = s.get_boolean('all-monitors') ? Main.layoutManager.monitors :
             [Main.layoutManager.primaryMonitor].filter(Boolean);
         try {
             for (const monitor of monitors) {
-                const rects = segmentRects(monitor, s.get_string('edge'), s.get_int('thickness'), colors.length);
+                const rects = segmentRects(monitor, s.get_string('edge'), s.get_int('thickness'), segments.length);
                 rects.forEach((rect, i) => {
                     const actor = new St.Widget({name: 'layout-stripe-segment',
                         reactive: false, can_focus: false, visible: false,
-                        style: `background-color: ${colors[i]};`,
+                        style: segmentStyle(segments[i], s.get_string('edge'), profile.outlineThickness,
+                            ['left', 'right'].includes(s.get_string('edge')) ? rect.width : rect.height),
                         opacity: Math.round(profile.opacity * 255 / 100)});
                     // Register ownership BEFORE any operation that can throw.
                     this._stripes.push({actor, monitorIndex: monitor.index});

@@ -53,7 +53,7 @@ function create() {
         Adw: {ActionRow: Widget, ExpanderRow: Widget, ComboRow: Widget, Toast: Widget},
         Gtk: {Align: {CENTER: 3}, Orientation: {HORIZONTAL: 0}, StringList: {new: items => Object.assign([...items], {get_n_items: () => items.length, get_string: i => items[i]})},
             DrawingArea: Widget, ColorButton: Widget, Box: Widget, Label: Widget, CheckButton: Widget,
-            Switch: Widget, Entry: Widget, Button: Widget, MenuButton: Widget, EmojiChooser: Widget, DropDown: Widget,
+            Switch: Widget, SpinButton: Widget, Adjustment: Widget, Entry: Widget, Button: Widget, MenuButton: Widget, EmojiChooser: Widget, DropDown: Widget,
             Scale: {new_with_range: () => new Widget()}},
         Gdk: {RGBA}, Gio: {}, ExtensionPreferences: class {}, ...common,
     });
@@ -244,4 +244,39 @@ test('saved preset editors update or copy by name without changing layout assign
     assert.equal(JSON.parse(values['user-presets']).length, 2);
     assert.equal(JSON.parse(values['user-presets'])[1].symbol, '🇷🇺');
     assert.equal(JSON.stringify(common.PRESETS), standard);
+});
+
+
+test('outline controls auto-fill after segment edits, preserve manual colors and save complete presets', () => {
+    const {prefs, settings, values, window} = create();
+    const source = {type: 'xkb', id: 'ru'};
+    const editor = prefs._layoutEditor(settings, source, window);
+    const width = row(editor, 'Outline thickness').suffixes[0];
+    assert.equal(width.value, 1);
+    width.set_value(2);
+    const main = row(editor, 'Segment 1').suffixes[0];
+    const [outline, automatic] = row(editor, 'Segment 1 outline').suffixes;
+    main.rgba = prefs._rgba('#000000');
+    assert.equal(row(editor, 'Segment 1 outline').subtitle, '#FFFFFF · Automatic');
+    outline.rgba = prefs._rgba('#ABCDEF');
+    assert.equal(row(editor, 'Segment 1 outline').subtitle, '#ABCDEF');
+    const [name, save] = row(editor, 'Save as my preset').suffixes;
+    name.text = 'Outlined';
+    save.emit('clicked');
+    const preset = JSON.parse(values['user-presets'])[0];
+    assert.equal(preset.outlineThickness, 2);
+    assert.equal(preset.outlineColors[0], '#abcdef');
+    const saved = prefs._layoutEditor(settings, null, window, {preset});
+    assert.equal(row(saved, 'Outline thickness').suffixes[0].value, 2);
+    assert.equal(row(saved, 'Segment 1 outline').subtitle, '#ABCDEF');
+    automatic.emit('clicked');
+    assert.equal(row(editor, 'Segment 1 outline').subtitle, '#FFFFFF · Automatic');
+    main.rgba = prefs._rgba('#FFFFFF');
+    assert.equal(row(editor, 'Segment 1 outline').subtitle, '#000000 · Automatic');
+    width.set_value(0);
+    assert.equal(row(editor, 'Segment 1 outline').sensitive, false);
+    const reopened = prefs._layoutEditor(settings, source, window);
+    assert.equal(row(reopened, 'Outline thickness').suffixes[0].value, 0);
+    row(editor, 'Number of segments').selected = 0;
+    assert.equal(JSON.parse(values['layout-profiles'])['xkb:ru'].outlineColors.length, 1);
 });

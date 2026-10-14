@@ -7,7 +7,7 @@ import Gtk from 'gi://Gtk?version=4.0';
 import {addShortcutPreferences} from './shortcut-preferences.js';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {PRESETS, profileFor, presetFor, normalizeProfile, migrateSettings, matchingPreset,
-    toggleHidden, resetSettings, parseObject, sourceKey, userPresets, normalizeSymbol} from './common.js';
+    toggleHidden, resetSettings, parseObject, sourceKey, userPresets, normalizeSymbol, outlineColor, MAX_OUTLINE_THICKNESS} from './common.js';
 
 export default class LayoutStripePreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -252,9 +252,36 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             colorWidgets.push(this._colorRow(row, `Segment ${i + 1}`, profile.colors[i] ?? '#FFFFFF', hex => {
                 if (updating || i >= profile.colors.length) return;
                 profile.colors[i] = hex;
+                profile.outlineColors[i] = null;
                 store();
                 display();
             }));
+        }
+
+        const outlineRow = new Adw.ActionRow({title: 'Outline thickness',
+            subtitle: 'Logical pixels at the window-facing edge, within the stripe. 0 disables it.'});
+        const outlineWidth = new Gtk.SpinButton({numeric: true, digits: 0, valign: Gtk.Align.CENTER,
+            adjustment: new Gtk.Adjustment({lower: 0, upper: MAX_OUTLINE_THICKNESS,
+                step_increment: 1, page_increment: 1})});
+        outlineRow.add_suffix(outlineWidth);
+        row.add_row(outlineRow);
+        const outlineWidgets = [];
+        for (let i = 0; i < 3; i++) {
+            const widget = this._colorRow(row, `Segment ${i + 1} outline`, outlineColor(profile, i), hex => {
+                if (updating || i >= profile.colors.length) return;
+                profile.outlineColors[i] = hex;
+                store();
+                display();
+            });
+            const automatic = new Gtk.Button({icon_name: 'edit-undo-symbolic',
+                tooltip_text: 'Use automatic contrast color', valign: Gtk.Align.CENTER});
+            automatic.connect('clicked', () => {
+                profile.outlineColors[i] = null;
+                store();
+                display();
+            });
+            widget.row.add_suffix(automatic);
+            outlineWidgets.push({...widget, automatic});
         }
 
         const symbolRow = new Adw.ActionRow({title: 'Unicode symbol',
@@ -307,6 +334,16 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
                 button.rgba = this._rgba(hex);
                 colorRow.subtitle = hex.toUpperCase();
             });
+            outlineWidth.set_value(profile.outlineThickness);
+            outlineWidgets.forEach(({row: colorRow, button, automatic}, i) => {
+                colorRow.visible = i < profile.colors.length;
+                colorRow.sensitive = profile.outlineThickness > 0;
+                const hex = outlineColor(profile, i);
+                button.rgba = this._rgba(hex);
+                const manual = typeof profile.outlineColors[i] === 'string';
+                colorRow.subtitle = hex.toUpperCase() + (manual ? '' : ' · Automatic');
+                automatic.sensitive = manual;
+            });
             opacity.set_value(profile.opacity);
             opacity.sensitive = !profile.hidden;
             opacityLabel.label = `${profile.opacity}%`;
@@ -329,9 +366,16 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             display();
         };
         refresh();
+        outlineWidth.connect('value-changed', () => {
+            if (updating) return;
+            profile.outlineThickness = Math.round(outlineWidth.get_value());
+            store();
+            display();
+        });
         count.connect('notify::selected', () => {
             if (updating) return;
-            profile.colors = Array.from({length: count.selected + 1}, (_, i) => profile.colors[i] ?? '#FFFFFF');
+            profile = normalizeProfile({...profile,
+                colors: Array.from({length: count.selected + 1}, (_, i) => profile.colors[i] ?? '#FFFFFF')});
             store();
             display();
         });
