@@ -1,19 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 export const DEFAULT_GREEN = '#57E389';
+export const MAX_OUTLINE_THICKNESS = 20;
 // Editable color cues, not complete flag artwork.
 export const PRESETS = [
-    {id: 'us', name: 'English (US)', colors: [DEFAULT_GREEN], hidden: true, symbol: '🇺🇸'},
-    {id: 'gb', name: 'English (GB)', colors: [DEFAULT_GREEN], hidden: true, symbol: '🇬🇧'},
-    {id: 'de', name: 'German', symbol: '🇩🇪', colors: ['#000000', '#DD0000', '#FFCE00']},
-    {id: 'fr', name: 'French', symbol: '🇫🇷', colors: ['#0055A4', '#FFFFFF', '#EF4135']},
-    {id: 'it', name: 'Italian', symbol: '🇮🇹', colors: ['#009246', '#FFFFFF', '#CE2B37']},
-    {id: 'es', name: 'Spanish', symbol: '🇪🇸', colors: ['#AA151B', '#F1BF00', '#AA151B']},
-    {id: 'ru', name: 'Russian', symbol: '🇷🇺', colors: ['#FFFFFF', '#0039A6', '#D52B1E']},
-    {id: 'by', name: 'Belarusian', symbol: '🇧🇾', colors: ['#D22730', '#009739']},
-    {id: 'ua', name: 'Ukrainian', symbol: '🇺🇦', colors: ['#0057B7', '#FFD700']},
-    {id: 'pl', name: 'Polish', symbol: '🇵🇱', colors: ['#FFFFFF', '#DC143C']},
-].map(p => ({opacity: p.hidden ? 0 : 100, restoreOpacity: 100, reverse: false,
+    {id: 'us', name: 'English (US)', colors: [DEFAULT_GREEN], hidden: true, symbol: '🇺🇸',
+        outlineColors: ['#000000']},
+    {id: 'gb', name: 'English (GB)', colors: [DEFAULT_GREEN], hidden: true, symbol: '🇬🇧',
+        outlineColors: ['#000000']},
+    {id: 'de', name: 'German', symbol: '🇩🇪', colors: ['#000000', '#DD0000', '#FFCE00'],
+        outlineColors: ['#FFFFFF', '#FFFFFF', '#000000']},
+    {id: 'fr', name: 'French', symbol: '🇫🇷', colors: ['#0055A4', '#FFFFFF', '#EF4135'],
+        outlineColors: ['#FFFFFF', '#000000', '#000000']},
+    {id: 'it', name: 'Italian', symbol: '🇮🇹', colors: ['#009246', '#FFFFFF', '#CE2B37'],
+        outlineColors: ['#000000', '#000000', '#FFFFFF']},
+    {id: 'es', name: 'Spanish', symbol: '🇪🇸', colors: ['#AA151B', '#F1BF00', '#AA151B'],
+        outlineColors: ['#FFFFFF', '#000000', '#FFFFFF']},
+    {id: 'ru', name: 'Russian', symbol: '🇷🇺', colors: ['#FFFFFF', '#0039A6', '#D52B1E'],
+        outlineColors: ['#000000', '#FFFFFF', '#FFFFFF']},
+    {id: 'by', name: 'Belarusian', symbol: '🇧🇾', colors: ['#D22730', '#009739'],
+        outlineColors: ['#FFFFFF', '#000000']},
+    {id: 'ua', name: 'Ukrainian', symbol: '🇺🇦', colors: ['#0057B7', '#FFD700'],
+        outlineColors: ['#FFFFFF', '#000000']},
+    {id: 'pl', name: 'Polish', symbol: '🇵🇱', colors: ['#FFFFFF', '#DC143C'],
+        outlineColors: ['#000000', '#FFFFFF']},
+].map(p => ({outlineThickness: 1, opacity: p.hidden ? 0 : 100, restoreOpacity: 100, reverse: false,
     hidden: false, ...p}));
 
 export function validColors(value) {
@@ -41,9 +52,20 @@ export function normalizeSymbol(value) {
 export function normalizeProfile(value, fallback = {}) {
     const hidden = typeof value?.hidden === 'boolean' ? value.hidden : Boolean(fallback.hidden);
     const opacity = percent(value?.opacity, percent(fallback.opacity, 100));
+    const colors = [...(validColors(value?.colors) ? value.colors :
+        validColors(fallback.colors) ? fallback.colors : [DEFAULT_GREEN])];
+    const samePalette = validColors(fallback.colors) && colors.length === fallback.colors.length &&
+        colors.every((color, i) => color.toLowerCase() === fallback.colors[i].toLowerCase());
+    const outlineColors = Array.isArray(value?.outlineColors) ? value.outlineColors :
+        samePalette && Array.isArray(fallback.outlineColors) ? fallback.outlineColors : [];
+    const width = Number.isFinite(value?.outlineThickness) ? value.outlineThickness :
+        Number.isFinite(fallback.outlineThickness) ? fallback.outlineThickness : 1;
     return {
-        colors: [...(validColors(value?.colors) ? value.colors :
-            validColors(fallback.colors) ? fallback.colors : [DEFAULT_GREEN])],
+        colors,
+        outlineThickness: Math.max(0, Math.min(MAX_OUTLINE_THICKNESS, Math.round(width))),
+        // A null entry follows the segment color; a hex entry is a manual override.
+        outlineColors: colors.map((_color, i) =>
+            typeof outlineColors[i] === 'string' && /^#[0-9a-f]{6}$/i.test(outlineColors[i]) ? outlineColors[i] : null),
         symbol: normalizeSymbol(typeof value?.symbol === 'string' ? value.symbol : fallback.symbol ?? '🌐'),
         opacity: hidden ? 0 : opacity,
         restoreOpacity: percent(value?.restoreOpacity,
@@ -53,6 +75,31 @@ export function normalizeProfile(value, fallback = {}) {
         presetId: value?.presetId === null ? null :
             typeof value?.presetId === 'string' ? value.presetId : fallback.presetId ?? null,
     };
+}
+
+export function contrastColor(hex) {
+    const channels = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+        .map(c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+    // Black and white have equal contrast near this relative luminance.
+    return luminance > 0.179 ? '#000000' : '#FFFFFF';
+}
+
+export function outlineColor(profile, index) {
+    return profile.outlineColors[index] ?? contrastColor(profile.colors[index] ?? DEFAULT_GREEN);
+}
+
+export function stripeSegments(profile) {
+    const segments = profile.colors.map((color, i) => ({color, outline: outlineColor(profile, i)}));
+    return profile.reverse ? segments.reverse() : segments;
+}
+
+export function segmentStyle(segment, edge, outlineThickness, crossSize) {
+    // Draw toward the window content, within the existing stripe footprint.
+    const side = {bottom: 'top', top: 'bottom', left: 'right', right: 'left'}[edge];
+    const width = Math.min(outlineThickness, Math.max(0, crossSize - 1));
+    return `background-color: ${segment.color};` +
+        (width > 0 ? ` border-${side}: ${width}px solid ${segment.outline};` : '');
 }
 
 export function userPresets(text) {
@@ -125,6 +172,7 @@ export function migrateSettings(settings, sources) {
         const profile = profileFor(source, {}, settings.get_strv('fallback-colors'));
         if (validColors(legacy[key])) {
             profile.colors = [...legacy[key]];
+            profile.outlineColors = profile.colors.map(() => null);
             const preset = presetFor(source);
             if (['us', 'gb'].includes(preset?.id) && profile.colors.length === 1 &&
                 [DEFAULT_GREEN.toLowerCase(), '#36b86a'].includes(profile.colors[0].toLowerCase()))

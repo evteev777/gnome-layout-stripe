@@ -1,6 +1,6 @@
 # Layout Stripe
 
-**1.0 Beta 1** — the first public prerelease.
+**1.0 Beta 2** — prerelease with source menus and shortcut controls.
 
 Keyboard layout indicators for GNOME Shell:
 
@@ -15,11 +15,12 @@ The stripe passes clicks through and does not reserve workspace space.
 | Setting | Default |
 | --- | --- |
 | Screen edge | Bottom |
-| Thickness | 6 logical pixels |
+| Thickness | 6 logical pixels, including the outline |
+| Outline | 1 logical pixel, with contrasting colors for each segment |
 | All monitors | On |
 | Show over fullscreen windows | Off |
 | Unicode symbol in the top panel | On |
-| System layout indicator | Off |
+| Disable system layout label | On (system indicator hidden) |
 | Unknown-layout color | Green (`#57E389`) |
 
 Built-in presets: English (US), English (GB), German, French, Italian, Spanish,
@@ -37,11 +38,77 @@ depends on the installed fonts. Use the smiley button beside **Unicode symbol**
 to open GTK's built-in emoji chooser with categories and search. Picking an emoji
 replaces the current symbol; manual text entry remains available.
 
+A thin **outline** separates the stripe from the window content on the inward-facing
+edge. Built-in presets include fixed black/white outline colors and a 1-pixel width.
+Custom presets use automatic contrast colors, selectable per segment in both layout
+and saved-preset editors. Choosing a segment color resets its outline to automatic;
+afterwards the outline color can be edited, or restored with **Use automatic contrast
+color**. **Outline thickness** accepts 0–20 logical pixels; 0 disables it. It fits
+inside the stripe and is capped to keep at least one pixel of the main color.
+Reverse keeps each outline paired with its segment. Existing saved presets acquire
+an automatic 1-pixel outline unless they already contain outline settings.
+
 **Hide** remembers the previous opacity and restores it when unchecked.
-**My presets** saves complete configurations. Applying a preset copies its
-settings; subsequent changes to the saved preset do not alter other layouts.
+**My presets** saves complete configurations. **New preset** opens a temporary
+editor for a preset created from scratch, with colors, opacity, Hide, reverse and
+a Unicode symbol. Save adds it to My presets; Cancel discards the draft. Neither
+affects a configured input source. Saved presets expand into the same editor directly
+in **My presets**. Both editors offer an editable name and a dropdown of custom
+preset names. The dropdown fills only the name: saving an existing name replaces
+that custom preset, while a different name creates a copy. Built-in presets are
+never overwritten. Applying a preset copies its settings; subsequent changes to
+the saved preset do not alter other layouts.
 **Reset** restores defaults and automatic preset selection without deleting
 saved presets or changing the system's input sources.
+
+The **Disable system layout label** switch hides GNOME's indicator when enabled.
+It is on by default. Existing explicitly saved visibility settings are preserved;
+the switch uses the inverse of the existing setting.
+
+## Panel menus
+
+Left-click the Unicode indicator to select an input source. Each entry shows its
+configured Unicode symbol and system name; a check marks the active source.
+Right-click for **Layout Stripe Settings**, **Show Keyboard Layout** and
+**Keyboard Settings**. The layout viewer and keyboard settings use GNOME's
+existing system actions, even when its indicator is hidden.
+
+The menu is centered on the indicator and has an independent popup manager, so
+hovering over neighboring panel icons does not replace it. Touch opens the source
+list. When the indicator has keyboard focus, Enter/Space/Down opens the list;
+Menu or Shift+F10 opens settings. Escape and clicking outside close the popup.
+
+## Keyboard shortcuts
+
+The Stripe page offers one **Additional layout shortcut** selector: None, Alt+Shift,
+Ctrl+Shift or Caps Lock. Standard next/previous
+shortcuts remain in GNOME Keyboard Settings, available through the indicator's
+right-click menu.
+
+Alt+Shift and Ctrl+Shift use GNOME's next-input-source bindings for both key orders
+and left/right modifier keys. Caps Lock uses an XKB group switch. Choosing None
+removes the additional switch while keeping standard shortcuts such as Super+Space.
+Changing the preset also preserves unrelated XKB options such as Compose settings.
+
+Existing manual Alt+Shift/Ctrl+Shift bindings are recognized. A mixed or unsupported
+system configuration has no selected option and is left unchanged until an explicit
+selection; there is no selectable Custom item. Opening preferences does not change
+system settings. Alt+Shift/Ctrl+Shift/Caps Lock edits persist after disabling or
+uninstalling the extension. Layout Stripe's Reset does not change shortcuts.
+Saved experimental left/right bindings are cleared on upgrade or when opening
+preferences. The extension no longer registers its own keyboard shortcut handler.
+
+Left + right Ctrl/Shift and double-tap Ctrl/Shift shortcuts are deferred and not
+offered. Shell stage event handlers
+cannot reliably observe keyboard events delivered to focused Wayland clients.
+A double-tap implementation needs a separate approach that preserves ordinary
+Ctrl/Shift shortcuts; it must not rely on a stage-only listener or swallow modifier
+key events.
+
+The extension reloads GNOME's input-source manager when XKB options change. This
+works around GNOME 50.1 passing a layout object instead of an ID in its keymap
+reapply path, which can leave Caps Lock using the previous keymap after a switch.
+No GNOME method is replaced and no additional global keybinding is installed.
 
 ## Install
 
@@ -88,8 +155,9 @@ Metadata enables GNOME Shell 46–50. The intended baseline is GNOME 46 on X11 o
 Wayland and GNOME 50 on Wayland. Other desktop environments are not supported.
 Future GNOME releases are deliberately not listed.
 
-**Confirmed by the maintainer:** GNOME Shell 50.1 on Wayland, including the
-emoji chooser. GNOME 46–49 remain enabled for beta testing and have not yet been
+**Beta 1 was confirmed by the maintainer:** GNOME Shell 50.1 on Wayland,
+including the emoji chooser. The maintainer confirmed the beta 2 menus and Alt+Shift/Ctrl+Shift/None selections.
+The Caps Lock reload fix still needs real-desktop validation. GNOME 46–49 remain enabled for beta testing and have not yet been
 validated on real desktops.
 
 Automated tests use simulated Shell/GTK objects and do not certify desktop
@@ -122,7 +190,9 @@ the repository. GitHub Actions runs lint, tests, schema validation and packaging
 
 `extension.js` manages Shell actors and signals. `prefs.js` owns the GTK
 preferences. `common.js` contains pure profile, preset, geometry and migration
-logic. `panel-visibility.js` temporarily controls the system indicator without
+logic. `indicator.js` owns the panel menus. `shortcut-preferences.js` edits system
+shortcuts through GTK and GSettings, with pure option helpers in
+`shortcut-options.js`. `panel-visibility.js` temporarily controls the system indicator without
 replacing Shell methods. All objects and signals created at enable time are
 cleaned up at disable time, including partial activation failures.
 

@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {modifierSelection, withModifierShortcut, shortcutConflict, MODIFIER_SHORTCUTS, primaryAccelerators, withoutRetiredModifiers} from '../shortcut-options.js';
+
+test('native modifier presets recognize manual settings and preserve unrelated shortcuts and XKB options', () => {
+    const original = ['compose:ralt', 'caps:escape', 'grp:alt_shift_toggle', 'grp_led:scroll'];
+    const primary = ['<Super>space', 'XF86Keyboard', '<Control>space'];
+    assert.equal(modifierSelection(original, primary), -1);
+    const alt = withModifierShortcut(original, primary, 1);
+    assert.deepEqual(alt.options, ['compose:ralt', 'caps:escape', 'grp_led:scroll']);
+    assert.deepEqual(alt.accelerators, [...primary, ...MODIFIER_SHORTCUTS[1].accelerators]);
+    assert.equal(modifierSelection(alt.options, alt.accelerators), 1);
+    const ctrl = withModifierShortcut(alt.options, alt.accelerators, 2);
+    assert.deepEqual(ctrl.accelerators, [...primary, ...MODIFIER_SHORTCUTS[2].accelerators]);
+    assert.equal(modifierSelection(ctrl.options, ctrl.accelerators), 2);
+    const caps = withModifierShortcut(ctrl.options, ctrl.accelerators, 3);
+    assert.deepEqual(caps.accelerators, primary);
+    assert.equal(modifierSelection(caps.options, caps.accelerators), 3);
+    const none = withModifierShortcut(caps.options, caps.accelerators, 0);
+    assert.deepEqual(none.options, ['compose:ralt', 'caps:escape', 'grp_led:scroll']);
+    assert.deepEqual(none.accelerators, primary);
+    assert.equal(modifierSelection(none.options, none.accelerators), 0);
+    assert.deepEqual(withModifierShortcut(original, primary, 99), {options: original, accelerators: primary});
+});
+
+test('unrecognized configurations have no selected preset; None leaves primary shortcuts intact', () => {
+    const alt = MODIFIER_SHORTCUTS[1].accelerators;
+    assert.equal(modifierSelection([], ['<Super>space', ...alt]), 1);
+    assert.equal(modifierSelection([], ['<Ctrl>Shift_L']), 2);
+    assert.equal(modifierSelection(['grp:caps_toggle'], alt), -1);
+    assert.equal(modifierSelection([], [...alt, ...MODIFIER_SHORTCUTS[2].accelerators]), -1);
+    assert.deepEqual(primaryAccelerators(['<Super>space', ...alt]), ['<Super>space']);
+});
+
+test('shortcut conflicts exclude the edited action but include the opposite direction and aliases', () => {
+    const bindings = {next: ['Ctrl+Space'], previous: ['Super+Shift+Space'], other: ['Alt+F4']};
+    const normalize = value => value.replace('Control', 'Ctrl');
+    assert.equal(shortcutConflict(bindings, 'next', 'Control+Space', normalize), null);
+    assert.equal(shortcutConflict(bindings, 'previous', 'Control+Space', normalize), 'next');
+    assert.equal(shortcutConflict(bindings, 'next', 'Alt+F4', normalize), 'other');
+    assert.equal(shortcutConflict(bindings, 'next', '', normalize), null);
+});
+
+
+test('retired Ctrl combinations are removed without touching active shortcuts', () => {
+    const old = ['<Super>space', '<Ctrl>Control_L', '<Control>Control_R', '<Shift>Shift_L'];
+    assert.deepEqual(withoutRetiredModifiers(old), ['<Super>space']);
+    assert.deepEqual(primaryAccelerators(old), ['<Super>space']);
+    assert.ok(MODIFIER_SHORTCUTS.every(s => !/right Ctrl|right Shift|Double/.test(s.label)));
+});

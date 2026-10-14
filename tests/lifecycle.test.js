@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import * as common from '../common.js';
+import {LEGACY_SHORTCUT_KEY} from '../shortcut-options.js';
 import {PanelVisibility} from '../panel-visibility.js';
 
 class Signals {
@@ -20,14 +21,17 @@ class Signals {
 }
 
 test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on disable', () => {
-    const values = {edge: 'bottom', thickness: 4, opacity: 100, reverse: false,
+    const values = {[LEGACY_SHORTCUT_KEY]: ['<Shift>Shift_L', '<Shift>Shift_R'], edge: 'bottom', thickness: 4, opacity: 100, reverse: false,
         'all-monitors': true, 'show-fullscreen': false, 'layout-colors': '{}',
         'fallback-colors': ['#808080'], 'layout-profiles': '{}', 'profile-format-version': 2, 'show-panel-symbol': true, 'show-system-label': true};
     const settings = Object.assign(new Signals(), {
         get_string: k => values[k], get_int: k => values[k],
         get_boolean: k => values[k], get_strv: k => values[k],
+        set_strv: (k, v) => {values[k] = [...v]; return true;},
     });
-    const manager = Object.assign(new Signals(), {currentSource: {type: 'xkb', id: 'ru'}});
+    let reloads = 0;
+    let inputSettings;
+    const manager = Object.assign(new Signals(), {reload() {reloads++;}, currentSource: {type: 'xkb', id: 'ru'}});
     const fullscreen = new Set([1]);
     const display = Object.assign(new Signals(), {get_monitor_in_fullscreen: i => fullscreen.has(i)});
     const sessionMode = Object.assign(new Signals(), {isLocked: false, isGreeter: false});
@@ -55,12 +59,12 @@ test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on 
     });
     layoutManager.primaryMonitor = layoutManager.monitors[0];
     const panel = {statusArea: {}, addToStatusArea(uuid, indicator) {this.statusArea[uuid] = indicator;}};
-    const PanelMenu = {Button: class {
-        visible = true;
-        menu = {addAction() {}};
-        add_child() {}
+    const LayoutIndicator = class {
+        symbol = {text: ''};
+        attach(uuid) {panel.addToStatusArea(uuid, this);}
+        refresh() {}
         destroy() {this.destroyed = true;}
-    }};
+    };
     const St = {Label: class {constructor(props) {Object.assign(this, props);}}, Widget: class {
         constructor(props) { Object.assign(this, props); }
         set_position(x, y) { this.x = x; this.y = y; }
@@ -73,12 +77,17 @@ test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on 
     const Class = vm.runInNewContext(`${code}\nLayoutStripe;`, {
         St, Extension: class {getSettings() {return settings;}},
         Main: {layoutManager, sessionMode, uiGroup, panel}, Keyboard: {getInputSourceManager: () => manager},
-        global: {display}, ...common, console, PanelMenu, PanelVisibility, Clutter: {ActorAlign: {CENTER: 0}}, Gio: {Settings: class {
+        global: {display}, ...common, console, LEGACY_SHORTCUT_KEY, LayoutIndicator, PanelVisibility, Gio: {Settings: class extends Signals {
+            constructor() {super(); inputSettings = this;}
             get_value() {return {deep_unpack: () => [['xkb', 'ru'], ['xkb', 'us']]};}
         }},
     });
     const extension = new Class();
     extension.enable();
+    assert.deepEqual(values[LEGACY_SHORTCUT_KEY], []);
+    for (let i = 0; i < 3; i++)
+        inputSettings.emit('changed::xkb-options');
+    assert.equal(reloads, 3);
     assert.equal(live.size, 6);
     const actors = [...live];
     settings.emit('changed', settings, 'user-presets');
@@ -118,7 +127,7 @@ test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on 
     layoutManager.emit('monitors-changed');
     assert.equal(live.size, 0);
     extension.disable();
-    for (const obj of [settings, manager, display, layoutManager, sessionMode])
+    for (const obj of [settings, inputSettings, manager, display, layoutManager, sessionMode])
         assert.equal(obj.handlers.size, 0);
     layoutManager.primaryMonitor = {index: 0, x: 0, y: 0, width: 1920, height: 1080};
     extension.enable();
@@ -134,7 +143,7 @@ test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on 
     };
     assert.throws(() => extension.enable(), /API changed/);
     assert.equal(live.size, 0);
-    for (const obj of [settings, manager, display, layoutManager, sessionMode])
+    for (const obj of [settings, inputSettings, manager, display, layoutManager, sessionMode])
         assert.equal(obj.handlers.size, 0);
     manager.connect = originalConnect;
     const originalFullscreen = display.get_monitor_in_fullscreen;
@@ -146,7 +155,7 @@ test('extension reacts to layouts/settings/fullscreen/monitors and cleans up on 
     failAttachment = true;
     assert.throws(() => extension.enable(), /Attachment failed/);
     assert.equal(live.size, 0);
-    for (const obj of [settings, manager, display, layoutManager, sessionMode])
+    for (const obj of [settings, inputSettings, manager, display, layoutManager, sessionMode])
         assert.equal(obj.handlers.size, 0);
     failAttachment = false;
     extension.enable();

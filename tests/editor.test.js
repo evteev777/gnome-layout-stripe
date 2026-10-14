@@ -51,9 +51,9 @@ function create() {
         .replace('export default class LayoutStripePreferences', 'class LayoutStripePreferences');
     const Class = vm.runInNewContext(`${code}\nLayoutStripePreferences;`, {
         Adw: {ActionRow: Widget, ExpanderRow: Widget, ComboRow: Widget, Toast: Widget},
-        Gtk: {Align: {CENTER: 3}, Orientation: {HORIZONTAL: 0}, StringList: {new: items => [...items]},
+        Gtk: {Align: {CENTER: 3}, Orientation: {HORIZONTAL: 0}, StringList: {new: items => Object.assign([...items], {get_n_items: () => items.length, get_string: i => items[i]})},
             DrawingArea: Widget, ColorButton: Widget, Box: Widget, Label: Widget, CheckButton: Widget,
-            Switch: Widget, Entry: Widget, Button: Widget, MenuButton: Widget, EmojiChooser: Widget,
+            Switch: Widget, SpinButton: Widget, Adjustment: Widget, Entry: Widget, Button: Widget, MenuButton: Widget, EmojiChooser: Widget, DropDown: Widget,
             Scale: {new_with_range: () => new Widget()}},
         Gdk: {RGBA}, Gio: {}, ExtensionPreferences: class {}, ...common,
     });
@@ -177,4 +177,106 @@ test('emoji picker replaces the symbol, persists it and closes without changing 
         const reopened = prefs._layoutEditor(settings, source, window);
         assert.equal(row(reopened, 'Unicode symbol').suffixes[0].text, emoji);
     }
+});
+
+
+test('new preset drafts save complete settings without changing layout assignments', () => {
+    const {prefs, settings, values, window} = create();
+    let saved = 0;
+    let cancelled = 0;
+    const actions = {saved: () => saved++, cancel: () => cancelled++};
+    const editor = prefs._layoutEditor(settings, null, window, actions);
+    assert.equal(editor.row.title, 'New preset');
+    assert.equal(editor.row.expanded, true);
+    row(editor, 'Number of segments').selected = 2;
+    row(editor, 'Unicode symbol').suffixes[0].text = '🦊';
+    row(editor, 'Opacity').suffixes[0].children[0].set_value(45);
+    row(editor, 'Reverse color order').suffixes[0].active = true;
+    assert.equal(values['layout-profiles'], '{}');
+    assert.equal(values['user-presets'], '[]');
+    const [name, save] = row(editor, 'Save as my preset').suffixes;
+    name.text = 'Fox';
+    save.emit('clicked');
+    const preset = JSON.parse(values['user-presets'])[0];
+    assert.equal(preset.symbol, '🦊');
+    assert.equal(preset.colors.length, 3);
+    assert.equal(preset.opacity, 45);
+    assert.equal(preset.reverse, true);
+    assert.equal(saved, 1);
+    assert.equal(values['layout-profiles'], '{}');
+    const duplicate = prefs._layoutEditor(settings, null, window, actions);
+    row(duplicate, 'Save as my preset').suffixes[0].text = 'Fox';
+    row(duplicate, 'Save as my preset').suffixes[1].emit('clicked');
+    assert.equal(saved, 2);
+    assert.equal(JSON.parse(values['user-presets']).length, 1);
+    row(duplicate, 'Discard new preset').suffixes[0].emit('clicked');
+    assert.equal(cancelled, 1);
+    assert.equal(values['layout-profiles'], '{}');
+});
+
+
+test('saved preset editors update or copy by name without changing layout assignments or built-ins', () => {
+    const {prefs, settings, values, window} = create();
+    const standard = JSON.stringify(common.PRESETS);
+    const original = {name: 'Fox', ...common.normalizeProfile({symbol: '🦊', colors: ['#123456']})};
+    values['user-presets'] = JSON.stringify([original]);
+    const editor = prefs._layoutEditor(settings, null, window, {preset: original});
+    assert.equal(editor.row.title, 'Fox');
+    assert.equal(editor.row.expanded, false);
+    const [name, save, names] = row(editor, 'Save as my preset').suffixes;
+    assert.equal(name.text, 'Fox');
+    row(editor, 'Unicode symbol').suffixes[0].text = '🐱';
+    assert.equal(JSON.parse(values['user-presets'])[0].symbol, '🦊');
+    save.emit('clicked');
+    assert.equal(JSON.parse(values['user-presets'])[0].symbol, '🐱');
+    name.text = 'Cat';
+    save.emit('clicked');
+    assert.equal(JSON.parse(values['user-presets']).length, 2);
+    names.selected = 1;
+    assert.equal(name.text, 'Fox');
+    assert.equal(values['layout-profiles'], '{}');
+    assert.equal(JSON.stringify(common.PRESETS), standard);
+    const source = prefs._layoutEditor(settings, {type: 'xkb', id: 'ru'}, window);
+    const [sourceName, sourceSave, sourceNames] = row(source, 'Save as my preset').suffixes;
+    sourceNames.selected = 2;
+    assert.equal(sourceName.text, 'Cat');
+    sourceSave.emit('clicked');
+    assert.equal(JSON.parse(values['user-presets']).length, 2);
+    assert.equal(JSON.parse(values['user-presets'])[1].symbol, '🇷🇺');
+    assert.equal(JSON.stringify(common.PRESETS), standard);
+});
+
+
+test('outline controls auto-fill after segment edits, preserve manual colors and save complete presets', () => {
+    const {prefs, settings, values, window} = create();
+    const source = {type: 'xkb', id: 'ru'};
+    const editor = prefs._layoutEditor(settings, source, window);
+    const width = row(editor, 'Outline thickness').suffixes[0];
+    assert.equal(width.value, 1);
+    width.set_value(2);
+    const main = row(editor, 'Segment 1').suffixes[0];
+    const [outline, automatic] = row(editor, 'Segment 1 outline').suffixes;
+    main.rgba = prefs._rgba('#000000');
+    assert.equal(row(editor, 'Segment 1 outline').subtitle, '#FFFFFF · Automatic');
+    outline.rgba = prefs._rgba('#ABCDEF');
+    assert.equal(row(editor, 'Segment 1 outline').subtitle, '#ABCDEF');
+    const [name, save] = row(editor, 'Save as my preset').suffixes;
+    name.text = 'Outlined';
+    save.emit('clicked');
+    const preset = JSON.parse(values['user-presets'])[0];
+    assert.equal(preset.outlineThickness, 2);
+    assert.equal(preset.outlineColors[0], '#abcdef');
+    const saved = prefs._layoutEditor(settings, null, window, {preset});
+    assert.equal(row(saved, 'Outline thickness').suffixes[0].value, 2);
+    assert.equal(row(saved, 'Segment 1 outline').subtitle, '#ABCDEF');
+    automatic.emit('clicked');
+    assert.equal(row(editor, 'Segment 1 outline').subtitle, '#FFFFFF · Automatic');
+    main.rgba = prefs._rgba('#FFFFFF');
+    assert.equal(row(editor, 'Segment 1 outline').subtitle, '#000000 · Automatic');
+    width.set_value(0);
+    assert.equal(row(editor, 'Segment 1 outline').sensitive, false);
+    const reopened = prefs._layoutEditor(settings, source, window);
+    assert.equal(row(reopened, 'Outline thickness').suffixes[0].value, 0);
+    row(editor, 'Number of segments').selected = 0;
+    assert.equal(JSON.parse(values['layout-profiles'])['xkb:ru'].outlineColors.length, 1);
 });

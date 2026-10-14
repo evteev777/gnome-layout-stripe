@@ -4,9 +4,10 @@ import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk?version=4.0';
+import {addShortcutPreferences} from './shortcut-preferences.js';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {PRESETS, profileFor, presetFor, normalizeProfile, migrateSettings, matchingPreset,
-    toggleHidden, resetSettings, parseObject, sourceKey, userPresets, normalizeSymbol} from './common.js';
+    toggleHidden, resetSettings, parseObject, sourceKey, userPresets, normalizeSymbol, outlineColor, MAX_OUTLINE_THICKNESS} from './common.js';
 
 export default class LayoutStripePreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -48,10 +49,11 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
 
         const panelGroup = new Adw.PreferencesGroup({title: 'Top panel'});
         general.add(panelGroup);
-        this._switch(panelGroup, settings, 'show-panel-symbol', 'Show Unicode layout symbol',
+        this._switch(panelGroup, settings, 'show-panel-symbol', 'Show country flag or custom Unicode symbol',
             'Use the symbol from the active layout preset, even when its stripe is hidden.');
-        this._switch(panelGroup, settings, 'show-system-label', 'Show system layout label',
-            'Keep GNOME’s standard layout indicator, such as en or ru.');
+        this._switch(panelGroup, settings, 'show-system-label', 'Disable system layout label',
+            'Hide GNOME’s standard layout indicator, such as en or ru.', true);
+        const cleanupShortcuts = addShortcutPreferences(general, window, settings);
         const resetGroup = new Adw.PreferencesGroup({title: 'Defaults'});
         general.add(resetGroup);
         const resetRow = new Adw.ActionRow({title: 'Reset settings to defaults',
@@ -68,9 +70,23 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
         const sourceGroup = new Adw.PreferencesGroup({title: 'Configured input sources',
             description: 'Each layout has its own colors, opacity, order and Unicode symbol.'});
         const savedGroup = new Adw.PreferencesGroup({title: 'My presets',
-            description: 'Save a preset from any layout. Removing it leaves applied settings unchanged.'});
+            description: 'Create a preset from scratch or save one from a layout. Removing it leaves applied settings unchanged.'});
         layouts.add(sourceGroup);
         layouts.add(savedGroup);
+        let draftEditor = null;
+        const newPreset = new Gtk.Button({label: 'New preset', valign: Gtk.Align.CENTER});
+        savedGroup.header_suffix = newPreset;
+        const closeDraft = () => {
+            if (draftEditor) savedGroup.remove(draftEditor.row);
+            draftEditor = null;
+            newPreset.sensitive = true;
+        };
+        newPreset.connect('clicked', () => {
+            if (draftEditor) return;
+            draftEditor = this._layoutEditor(settings, null, window, {saved: closeDraft, cancel: closeDraft});
+            savedGroup.add(draftEditor.row);
+            newPreset.sensitive = false;
+        });
         let editors = [];
         let sourceRows = [];
         let savedRows = [];
@@ -93,12 +109,12 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
         };
         const refreshPresets = () => {
             for (const editor of editors) editor.refresh();
+            draftEditor?.refresh();
             for (const row of savedRows) savedGroup.remove(row);
             savedRows = [];
             for (const preset of userPresets(settings.get_string('user-presets'))) {
-                const row = new Adw.ActionRow({title: preset.name,
-                    subtitle: this._profileSummary(preset), use_markup: false});
-                row.add_prefix(this._preview(preset));
+                const editor = this._layoutEditor(settings, null, window, {preset});
+                const row = editor.row;
                 const remove = new Gtk.Button({icon_name: 'user-trash-symbolic',
                     tooltip_text: 'Delete preset', valign: Gtk.Align.CENTER});
                 remove.connect('clicked', () => {
@@ -130,6 +146,7 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             })],
         ];
         window.connect('close-request', () => {
+            cleanupShortcuts();
             for (const [object, id] of signals) object.disconnect(id);
             return false;
         });
@@ -137,7 +154,7 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
         window._stripeInputSettings = inputSettings;
     }
 
-    _switch(group, settings, key, title, subtitle) {
+    _switch(group, settings, key, title, subtitle, inverted = false) {
         const row = Adw.SwitchRow ? new Adw.SwitchRow({title, subtitle}) :
             new Adw.ActionRow({title, subtitle});
         const control = Adw.SwitchRow ? row : new Gtk.Switch({valign: Gtk.Align.CENTER});
@@ -145,7 +162,8 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             row.add_suffix(control);
             row.activatable_widget = control;
         }
-        settings.bind(key, control, 'active', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind(key, control, 'active', Gio.SettingsBindFlags.DEFAULT |
+            (inverted ? Gio.SettingsBindFlags.INVERT_BOOLEAN : 0));
         group.add(row);
     }
 
@@ -207,18 +225,19 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
         return preview;
     }
 
-    _layoutEditor(settings, source, window) {
-        const key = sourceKey(source);
-        const read = () => profileFor(source, parseObject(settings.get_string('layout-profiles')),
-            settings.get_strv('fallback-colors'));
+    _layoutEditor(settings, source, window, draft = null) {
+        const key = source ? sourceKey(source) : null;
+        const read = () => draft ? normalizeProfile(draft.preset ?? {colors: ['#57E389'], symbol: '🌐'}) :
+            profileFor(source, parseObject(settings.get_string('layout-profiles')), settings.get_strv('fallback-colors'));
         let profile = read();
         let updating = false;
         let choices = [];
         const language = presetFor(source)?.name;
-        const row = new Adw.ExpanderRow({title: language ?? source.id, use_markup: false});
+        const row = new Adw.ExpanderRow({title: draft ? draft.preset?.name ?? 'New preset' : language ?? source.id, expanded: Boolean(draft && !draft.preset), use_markup: false});
         const preview = this._preview(profile);
         row.add_prefix(preview);
         const store = () => {
+            if (draft) return;
             const assignments = parseObject(settings.get_string('layout-profiles'));
             assignments[key] = normalizeProfile(profile);
             settings.set_string('layout-profiles', JSON.stringify(assignments));
@@ -233,9 +252,36 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             colorWidgets.push(this._colorRow(row, `Segment ${i + 1}`, profile.colors[i] ?? '#FFFFFF', hex => {
                 if (updating || i >= profile.colors.length) return;
                 profile.colors[i] = hex;
+                profile.outlineColors[i] = null;
                 store();
                 display();
             }));
+        }
+
+        const outlineRow = new Adw.ActionRow({title: 'Outline thickness',
+            subtitle: 'Logical pixels at the window-facing edge, within the stripe. 0 disables it.'});
+        const outlineWidth = new Gtk.SpinButton({numeric: true, digits: 0, valign: Gtk.Align.CENTER,
+            adjustment: new Gtk.Adjustment({lower: 0, upper: MAX_OUTLINE_THICKNESS,
+                step_increment: 1, page_increment: 1})});
+        outlineRow.add_suffix(outlineWidth);
+        row.add_row(outlineRow);
+        const outlineWidgets = [];
+        for (let i = 0; i < 3; i++) {
+            const widget = this._colorRow(row, `Segment ${i + 1} outline`, outlineColor(profile, i), hex => {
+                if (updating || i >= profile.colors.length) return;
+                profile.outlineColors[i] = hex;
+                store();
+                display();
+            });
+            const automatic = new Gtk.Button({icon_name: 'edit-undo-symbolic',
+                tooltip_text: 'Use automatic contrast color', valign: Gtk.Align.CENTER});
+            automatic.connect('clicked', () => {
+                profile.outlineColors[i] = null;
+                store();
+                display();
+            });
+            widget.row.add_suffix(automatic);
+            outlineWidgets.push({...widget, automatic});
         }
 
         const symbolRow = new Adw.ActionRow({title: 'Unicode symbol',
@@ -288,18 +334,30 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
                 button.rgba = this._rgba(hex);
                 colorRow.subtitle = hex.toUpperCase();
             });
+            outlineWidth.set_value(profile.outlineThickness);
+            outlineWidgets.forEach(({row: colorRow, button, automatic}, i) => {
+                colorRow.visible = i < profile.colors.length;
+                colorRow.sensitive = profile.outlineThickness > 0;
+                const hex = outlineColor(profile, i);
+                button.rgba = this._rgba(hex);
+                const manual = typeof profile.outlineColors[i] === 'string';
+                colorRow.subtitle = hex.toUpperCase() + (manual ? '' : ' · Automatic');
+                automatic.sensitive = manual;
+            });
             opacity.set_value(profile.opacity);
             opacity.sensitive = !profile.hidden;
             opacityLabel.label = `${profile.opacity}%`;
             hide.active = profile.hidden;
             reverse.active = profile.reverse;
-            row.subtitle = `${source.id} · ${this._profileSummary(profile)}`;
+            row.subtitle = (draft ? '' : `${source.id} · `) + this._profileSummary(profile);
             updateSelection();
             symbol.text = profile.symbol;
             preview.label = profile.symbol || '—';
             updating = false;
         };
+        let refreshNames = () => {};
         const refresh = () => {
+            refreshNames();
             updating = true;
             choices = [...PRESETS, ...userPresets(settings.get_string('user-presets'))];
             presetRow.model = Gtk.StringList.new(['Custom', ...choices.map((p, i) =>
@@ -308,9 +366,16 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             display();
         };
         refresh();
+        outlineWidth.connect('value-changed', () => {
+            if (updating) return;
+            profile.outlineThickness = Math.round(outlineWidth.get_value());
+            store();
+            display();
+        });
         count.connect('notify::selected', () => {
             if (updating) return;
-            profile.colors = Array.from({length: count.selected + 1}, (_, i) => profile.colors[i] ?? '#FFFFFF');
+            profile = normalizeProfile({...profile,
+                colors: Array.from({length: count.selected + 1}, (_, i) => profile.colors[i] ?? '#FFFFFF')});
             store();
             display();
         });
@@ -365,10 +430,11 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
         });
 
         const saveRow = new Adw.ActionRow({title: 'Save as my preset',
-            subtitle: 'Saves colors, opacity, Hide, reverse and Unicode symbol. An existing name updates that preset.'});
-        const name = new Gtk.Entry({placeholder_text: 'Preset name', max_length: 80,
+            subtitle: 'An existing name updates your preset. A new name saves a copy. Built-in presets stay unchanged.'});
+        const name = new Gtk.Entry({text: draft?.preset?.name ?? (profile.presetId?.startsWith('user:') ? profile.presetId.slice(5) : ''),
+            placeholder_text: 'Preset name', max_length: 80,
             valign: Gtk.Align.CENTER, width_chars: 18});
-        const save = new Gtk.Button({icon_name: 'document-save-symbolic', sensitive: false,
+        const save = new Gtk.Button({icon_name: 'document-save-symbolic', sensitive: Boolean(name.text.trim()),
             tooltip_text: 'Save preset', valign: Gtk.Align.CENTER});
         name.connect('changed', () => { save.sensitive = name.text.trim().length > 0; });
         const savePreset = () => {
@@ -383,14 +449,41 @@ export default class LayoutStripePreferences extends ExtensionPreferences {
             settings.set_string('user-presets', JSON.stringify(presets));
             store();
             refresh();
-            name.text = '';
+            name.text = title;
             window.add_toast(new Adw.Toast({title: `Preset “${title}” saved`}));
+            draft?.saved?.();
         };
         save.connect('clicked', savePreset);
         name.connect('activate', savePreset);
         saveRow.add_suffix(name);
         saveRow.add_suffix(save);
+        const names = new Gtk.DropDown({valign: Gtk.Align.CENTER,
+            tooltip_text: 'Choose a saved preset name'});
+        refreshNames = () => {
+            const current = userPresets(settings.get_string('user-presets'));
+            names.model = Gtk.StringList.new(['Choose saved name', ...current.map(p => p.name)]);
+            names.selected = 0;
+            names.sensitive = current.length > 0;
+        };
+        names.connect('notify::selected', () => {
+            if (names.selected > 0 && names.selected < names.model.get_n_items()) {
+                name.text = names.model.get_string(names.selected);
+                names.selected = 0;
+            }
+        });
+        refreshNames();
+        saveRow.add_suffix(names);
         row.add_row(saveRow);
+        if (draft?.preset)
+            return {row, refresh};
+        if (draft) {
+            const cancelRow = new Adw.ActionRow({title: 'Discard new preset'});
+            const cancel = new Gtk.Button({label: 'Cancel', valign: Gtk.Align.CENTER});
+            cancel.connect('clicked', draft.cancel);
+            cancelRow.add_suffix(cancel);
+            row.add_row(cancelRow);
+            return {row, refresh};
+        }
         const resetRow = new Adw.ActionRow({title: 'Restore layout defaults',
             subtitle: 'Use the built-in preset for this keyboard layout.'});
         const reset = new Gtk.Button({icon_name: 'edit-undo-symbolic',

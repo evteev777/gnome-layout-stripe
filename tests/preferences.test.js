@@ -38,7 +38,7 @@ for (const modern of [true, false]) {
             .replace(/^import [\s\S]*?;\n/gm, '')
             .replace('export default class LayoutStripePreferences', 'class LayoutStripePreferences');
         const Class = vm.runInNewContext(`${code}\nLayoutStripePreferences;`, {
-            Adw, Gtk, Gdk: {RGBA}, Gio: {SettingsBindFlags: {DEFAULT: 0}},
+            Adw, Gtk, Gdk: {RGBA}, Gio: {SettingsBindFlags: {DEFAULT: 0, INVERT_BOOLEAN: 16}},
             ExtensionPreferences: class {}, ...common,
         });
         const prefs = new Class();
@@ -59,6 +59,9 @@ for (const modern of [true, false]) {
             assert.equal(group.rows[0].suffixes[0], bindings[0][1]);
             assert.equal(group.rows[1].suffixes[0], bindings[1][1]);
         }
+        prefs._switch(group, settings, 'show-system-label', 'Disable system layout label', '', true);
+        assert.equal(bindings[2][3], 16);
+        assert.equal(group.rows[2].title, 'Disable system layout label');
         let selected;
         const parent = new ExpanderRow();
         const {row, button} = prefs._colorRow(parent, 'Color', '#123456', hex => {selected = hex;});
@@ -78,6 +81,6 @@ test('metadata permits supported releases while retaining settings identity', ()
     assert.deepEqual(metadata['shell-version'], Array.from({length: 5}, (_, i) => String(46 + i)));
     assert.equal(metadata.uuid, 'layout-stripe@evteev.ru');
     assert.equal(metadata['settings-schema'], 'org.gnome.shell.extensions.layout-stripe');
-    assert.equal(metadata['version-name'], '1.0 beta 1');
+    assert.equal(metadata['version-name'], '1.0 beta 2');
     assert.match(metadata['version-name'], /^(?!^[. ]+$)[a-zA-Z0-9 .]{1,16}$/);
 });

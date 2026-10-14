@@ -2,13 +2,13 @@
 
 import St from 'gi://St';
 import Gio from 'gi://Gio';
-import Clutter from 'gi://Clutter';
+import {LEGACY_SHORTCUT_KEY} from './shortcut-options.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Keyboard from 'resource:///org/gnome/shell/ui/status/keyboard.js';
-import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import {LayoutIndicator} from './indicator.js';
 import {PanelVisibility} from './panel-visibility.js';
-import {profileFor, migrateSettings, parseObject, segmentRects} from './common.js';
+import {profileFor, migrateSettings, parseObject, segmentRects, stripeSegments, segmentStyle} from './common.js';
 
 export default class LayoutStripe extends Extension {
     enable() {
@@ -23,18 +23,26 @@ export default class LayoutStripe extends Extension {
             const inputSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.input-sources'});
             migrateSettings(this._settings, inputSettings.get_value('sources').deep_unpack());
             this._manager = Keyboard.getInputSourceManager();
-            this._indicator = new PanelMenu.Button(0.0, 'Keyboard layout', false);
-            this._symbol = new St.Label({text: '', y_align: Clutter.ActorAlign.CENTER});
-            this._indicator.add_child(this._symbol);
-            this._indicator.menu.addAction('Preferences', () => this.openPreferences());
-            Main.panel.addToStatusArea(this.uuid, this._indicator);
+            if (this._settings.get_strv(LEGACY_SHORTCUT_KEY).length)
+                this._settings.set_strv(LEGACY_SHORTCUT_KEY, []);
+            this._indicator = new LayoutIndicator(this._manager, this._settings, () => this.openPreferences());
+            this._symbol = this._indicator.symbol;
+            this._indicator.attach(this.uuid);
             const keyboard = Main.panel.statusArea.keyboard;
             if (keyboard?.container)
                 this._systemVisibility = new PanelVisibility(keyboard.container);
             this._watch(this._manager, 'current-source-changed', () => this._rebuild());
-            this._watch(this._manager, 'sources-changed', () => this._rebuild());
+            this._watch(inputSettings, 'changed::xkb-options', () => {
+                // GNOME 50.1 reapply() passes a layout object instead of its ID.
+                // Reload through the manager so live XKB changes reach the backend.
+                this._manager.reload();
+            });
+            this._watch(this._manager, 'sources-changed', () => {
+                this._indicator.refresh(true);
+                this._rebuild();
+            });
             this._watch(this._settings, 'changed', (_settings, key) => {
-                if (!['user-presets', 'profile-format-version', 'layout-colors', 'opacity', 'reverse'].includes(key))
+                if (![LEGACY_SHORTCUT_KEY, 'user-presets', 'profile-format-version', 'layout-colors', 'opacity', 'reverse'].includes(key))
                     this._rebuild();
             });
             this._watch(Main.layoutManager, 'monitors-changed', () => this._rebuild());
@@ -72,20 +80,20 @@ export default class LayoutStripe extends Extension {
         this._symbol.text = profile.symbol;
         this._indicator.visible = s.get_boolean('show-panel-symbol') && Boolean(profile.symbol);
         this._systemVisibility?.setHidden(!s.get_boolean('show-system-label'));
+        this._indicator.refresh();
         if (profile.hidden || profile.opacity === 0)
             return;
-        const colors = [...profile.colors];
-        if (profile.reverse)
-            colors.reverse();
+        const segments = stripeSegments(profile);
         const monitors = s.get_boolean('all-monitors') ? Main.layoutManager.monitors :
             [Main.layoutManager.primaryMonitor].filter(Boolean);
         try {
             for (const monitor of monitors) {
-                const rects = segmentRects(monitor, s.get_string('edge'), s.get_int('thickness'), colors.length);
+                const rects = segmentRects(monitor, s.get_string('edge'), s.get_int('thickness'), segments.length);
                 rects.forEach((rect, i) => {
                     const actor = new St.Widget({name: 'layout-stripe-segment',
                         reactive: false, can_focus: false, visible: false,
-                        style: `background-color: ${colors[i]};`,
+                        style: segmentStyle(segments[i], s.get_string('edge'), profile.outlineThickness,
+                            ['left', 'right'].includes(s.get_string('edge')) ? rect.width : rect.height),
                         opacity: Math.round(profile.opacity * 255 / 100)});
                     // Register ownership BEFORE any operation that can throw.
                     this._stripes.push({actor, monitorIndex: monitor.index});
